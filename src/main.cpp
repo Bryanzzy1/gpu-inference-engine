@@ -31,10 +31,10 @@ int main(int argc, char** argv) {
 
     // Min/max price and buyer-maker counts in one pass.
     int64_t first_ts = trades.front().time_us;
-    int64_t last_ts  = trades.back().time_us;
-    double  min_price = std::numeric_limits<double>::max();
-    double  max_price = std::numeric_limits<double>::lowest();
-    std::size_t buyer_maker_true  = 0;
+    int64_t last_ts = trades.back().time_us;
+    double min_price = std::numeric_limits<double>::max();
+    double max_price = std::numeric_limits<double>::lowest();
+    std::size_t buyer_maker_true = 0;
     std::size_t buyer_maker_false = 0;
 
     for (const Trade& t : trades) {

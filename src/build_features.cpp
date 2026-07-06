@@ -16,10 +16,10 @@ int main(int argc, char** argv) {
                   << " <in.csv> <out.csv> [window] [horizon] [intensity_us]\n";
         return 1;
     }
-    const std::string in_path  = argv[1];
+    const std::string in_path = argv[1];
     const std::string out_path = argv[2];
-    const int     window       = (argc > 3) ? std::atoi(argv[3]) : 50;
-    const int     horizon      = (argc > 4) ? std::atoi(argv[4]) : 20;
+    const int window = (argc > 3) ? std::atoi(argv[3]) : 50;
+    const int horizon = (argc > 4) ? std::atoi(argv[4]) : 20;
     const int64_t intensity_us = (argc > 5) ? std::atoll(argv[5]) : 1000000;
 
     std::size_t bad_lines = 0;

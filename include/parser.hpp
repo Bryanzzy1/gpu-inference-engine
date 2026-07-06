@@ -1,4 +1,6 @@
-#pragma once
+#ifndef PARSER_HPP
+#define PARSER_HPP
+
 #include <string>
 #include <vector>
 #include "trade.hpp"
@@ -9,3 +11,5 @@ std::vector<Trade> parse_agg_trades(const std::string& path, std::size_t& bad_li
 
 // Same, without the bad-line count.
 std::vector<Trade> parse_agg_trades(const std::string& path);
+
+#endif
