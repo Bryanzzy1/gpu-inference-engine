@@ -15,3 +15,7 @@ add_executable(hello src/hello.cpp)
 # Tick parser.
 add_executable(parse_trades src/main.cpp src/parser.cpp)
 target_compile_features(parse_trades PRIVATE cxx_std_17)
+
+# Feature + label CSV builder.
+add_executable(build_features src/build_features.cpp src/parser.cpp src/features.cpp)
+target_compile_features(build_features PRIVATE cxx_std_17)
