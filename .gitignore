@@ -1,0 +1,26 @@
+# Raw market data is large — never commit it (re-download from Binance instead)
+data/*
+!data/.gitkeep
+
+# Build artifacts
+build/
+*.o
+*.obj
+*.exe
+*.out
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Editor / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Private learning notes — kept in the private claude-history repo, not here
+docs/LEARNING.md
+LEARNING.md
