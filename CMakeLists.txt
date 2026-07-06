@@ -11,3 +11,7 @@ endif()
 
 # Toolchain smoke test.
 add_executable(hello src/hello.cpp)
+
+# Tick parser.
+add_executable(parse_trades src/main.cpp src/parser.cpp)
+target_compile_features(parse_trades PRIVATE cxx_std_17)
