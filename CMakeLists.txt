@@ -9,6 +9,9 @@ if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Release)
 endif()
 
+# Header search path.
+include_directories(${CMAKE_SOURCE_DIR}/include)
+
 # Toolchain smoke test.
 add_executable(hello src/hello.cpp)
 
