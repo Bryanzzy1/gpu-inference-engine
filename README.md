@@ -89,3 +89,25 @@ cmake -S . -B build
 cmake --build build
 ./build/hello
 ```
+
+## Features implemented so far
+
+The CPU pipeline reads trades, computes features over a rolling window, and
+writes a feature + label CSV for training.
+
+- **parse_trades** reads an aggTrades CSV into a `vector<Trade>`.
+- **build_features** computes four features per trade and a label:
+  - mid price (last trade price)
+  - rolling volatility (std dev of the last N log returns)
+  - trade-sign imbalance (signed volume over total volume, in [-1, 1])
+  - trade intensity (trade count in the last time window)
+  - label: 1 if price rose H trades ahead, else 0
+
+```bash
+./build/build_features data/BTCUSDT-aggTrades-2026-06-27.csv data/features.csv
+python python/plot_features.py data/features.csv
+```
+
+Notes: features use only past trades; the label uses a future trade. Trade
+intensity uses a fixed-size timestamp ring that caps at 1024, which clips about
+0.1% of rows during the busiest bursts.
