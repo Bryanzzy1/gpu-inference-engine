@@ -35,7 +35,7 @@ on identical input.
 
 | Milestone | What it adds | Status |
 | --- | --- | --- |
-| **M1** | CPU tick→prediction pipeline + latency harness recording full distributions and jitter (no CUDA) | In progress |
+| **M1** | CPU tick→prediction pipeline (features, model, C++ forward pass) + latency harness recording full distributions and jitter (no CUDA) | In progress |
 | M2 | CUDA fundamentals in a separate learning repo; ring-buffer and persistent-kernel patterns | |
 | M3 | GPU feature kernels; first 2D (batch × load) frontier: CPU vs naive GPU vs CUDA Graphs | |
 | M4 | GPU inference path (cuBLAS + 1 fused kernel), then the **persistent megakernel** and the **SLA controller** | |
@@ -111,3 +111,21 @@ python python/plot_features.py data/features.csv
 Notes: features use only past trades; the label uses a future trade. Trade
 intensity uses a fixed-size timestamp ring that caps at 1024, which clips about
 0.1% of rows during the busiest bursts.
+
+## The model
+
+A tiny MLP (`4 -> 16 -> 16 -> 1`) maps the four features to a price-up logit. It is
+a fixed function every backend runs identically, not a trading signal. Inputs are
+standardized on the train split only, and the train/val/test split is time-ordered
+(no shuffle) so the model never sees future rows. Raw mid price is replaced by its
+log return, which is stationary.
+
+Training exports three files to `data/`: `model.json` (architecture, feature list,
+scaler mean/std), `model.bin` (float32 weights, row-major), and `model.onnx`. The
+script re-runs the forward pass in NumPy from the exported bytes and checks it
+matches PyTorch, so the C++ loader has a proven reference.
+
+```bash
+python -m pip install -r python/requirements.txt
+python python/train_model.py data/features.csv --out data/model
+```
