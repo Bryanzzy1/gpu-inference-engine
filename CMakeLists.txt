@@ -12,6 +12,13 @@ endif()
 # Header search path.
 include_directories(${CMAKE_SOURCE_DIR}/include)
 
+# On MinGW, link the GCC runtimes statically. Otherwise the exe loads whichever
+# libstdc++-6.dll is first on PATH, and an older one (Git for Windows ships its
+# own) makes the binaries segfault on launch.
+if(MINGW)
+  add_link_options(-static-libstdc++ -static-libgcc -static)
+endif()
+
 # Toolchain smoke test.
 add_executable(hello src/hello.cpp)
 
