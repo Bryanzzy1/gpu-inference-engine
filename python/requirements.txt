@@ -1,0 +1,8 @@
+# Python deps for the data + model scripts.
+# Install: python -m pip install -r requirements.txt
+# torch is CPU-only here (no local GPU); training this tiny MLP on CPU is fine.
+pandas
+numpy
+matplotlib
+torch
+onnx
