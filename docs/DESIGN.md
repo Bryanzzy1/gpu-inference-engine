@@ -58,11 +58,34 @@ The main artifact is a heatmap of the (batch × load) plane, colored by which
 backend has the lowest p999, with each boundary annotated with the cost that
 decides it.
 
+## The jitter autopsy
+
+The differentiating deliverable. Most GPU projects report a speedup and stop. This
+one decomposes where the GPU tail comes from and tries to kill each source, as
+controlled experiments rather than one number:
+
+- **Launch scheduling** - isolated by comparing naive request-response vs CUDA
+  Graphs vs the persistent kernel on the same work.
+- **Clock boosting** - the GPU idles at a low clock and ramps under load, fattening
+  early-sample latency. Locked with `nvidia-smi --lock-gpu-clocks` and the tail
+  change is measured, not assumed.
+- **PCIe transfer variance** - the copy itself has a tail; measured per stage.
+- **Memory contention and ECC scrubbing** - background hardware activity that adds
+  unpredictable spikes.
+
+Each inference is split into H2D / launch / compute / D2H with CUDA events (GPU-side
+timestamps), so the output is a per-stage tail distribution, not a single latency.
+The harness built in M1 is the sensor; the autopsy extends it onto the GPU. The
+honest finding "a pinned CPU thread has a tighter tail than any GPU path at batch-1"
+is itself a result, and reporting it truthfully is the point.
+
 ## The SLA controller
 
 A closed loop that measures the arrival rate at runtime and adjusts batch size to
 hold a p99 target under bursty load. This uses the frontier rather than just
-plotting it.
+plotting it. Static routing (consult the measured frontier as a lookup table and
+dispatch each request to the backend that wins at the current batch and load) is the
+simple version; the closed loop that adapts live under drift is the capstone.
 
 ## Measurement
 
@@ -84,6 +107,32 @@ Each layer works on its own, and the harder layers build on the simpler ones:
 
 The project stands if it stops at the floor, and each later layer answers a
 further question.
+
+## Roadmap
+
+| Milestone | Content | State |
+| --- | --- | --- |
+| **M1** | CPU pipeline: parser, four features + label CSV, tiny MLP trained + exported, C++ forward pass matched to the reference, tail-latency harness | done |
+| **M2** | CUDA fundamentals in a separate learning repo: vector add, parallel reduction, tiled matmul vs cuBLAS, streams + pinned memory, kernel-launch cost, a minimal persistent-kernel + ring prototype. Every step Nsight-profiled | next |
+| **M3** | GPU feature kernels; naive request-response and CUDA Graphs backends behind the `InferenceEngine` interface; the first measured 2D frontier; the jitter autopsy begins here | |
+| **M4** | Persistent megakernel + host↔device ring; the jitter autopsy completed; static frontier routing, then the closed-loop SLA controller | |
+
+Depth targets, in priority order:
+
+1. **The persistent megakernel done for real**, not as a label. This is the primary
+   CUDA teacher: persistent/grid-resident kernels, the CUDA memory model
+   (`__threadfence`, volatile loads, acquire/release), mapped pinned memory, a
+   lock-free SPSC ring across the host↔device boundary, and occupancy.
+2. **The jitter autopsy as a first-class deliverable** (see above). This is the part
+   peers skip and the main source of uniqueness.
+3. **Stretch, only if the base kernel is solid: warp specialization** inside the
+   persistent kernel - some warps ingest from the ring, some compute, some write
+   results out, a producer/consumer pipeline inside one kernel. This is how
+   production kernels (FlashAttention, Hopper pipelines) are built, and it teaches
+   `__syncwarp`, cooperative groups, and shared-memory queues.
+
+What this deliberately does not do: add more backends, chase model accuracy, or
+build the controller before the frontier it rides on is measured and honest.
 
 ## Risks
 
