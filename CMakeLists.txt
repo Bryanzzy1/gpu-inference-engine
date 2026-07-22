@@ -33,3 +33,7 @@ target_compile_features(build_features PRIVATE cxx_std_17)
 # C++ model forward pass vs the Python reference.
 add_executable(match_model src/match_model.cpp src/model.cpp)
 target_compile_features(match_model PRIVATE cxx_std_17)
+
+# Tail-latency benchmark of the CPU forward pass.
+add_executable(bench_model src/bench_model.cpp src/model.cpp src/parser.cpp src/features.cpp src/latency.cpp)
+target_compile_features(bench_model PRIVATE cxx_std_17)

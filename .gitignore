@@ -20,6 +20,7 @@ venv/
 .idea/
 .DS_Store
 Thumbs.db
+.lavish/
 
 # Private learning notes — kept in the private claude-history repo, not here
 docs/LEARNING.md
