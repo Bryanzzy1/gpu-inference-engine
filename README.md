@@ -48,15 +48,15 @@ persistent megakernel and the controller.
 ```
 gpu-inference-trading/
   CMakeLists.txt      # build (Day 1: hello-CMake target)
-  src/                # C++ source (parser, features, harness — M1)
+  src/                # C++ source (parser, features, harness: M1)
   python/             # data download/inspection now; model training later
-  data/               # raw CSVs (gitignored — re-fetch with download_data.py)
+  data/               # raw CSVs (gitignored, re-fetch with download_data.py)
   README.md
 ```
 
 ## Data
 
-Source: **Binance public data** — <https://data.binance.vision/>
+Source: **Binance public data**, <https://data.binance.vision/>
 (format & scripts: [`binance/binance-public-data`](https://github.com/binance/binance-public-data)).
 
 We use one day of **spot aggTrades for BTCUSDT**. aggTrades columns (no header
@@ -131,6 +131,24 @@ matches PyTorch within 1e-5, so the export format is proven before any C++ runs.
 python -m pip install -r python/requirements.txt
 python python/train_model.py data/features.csv --out data/model
 ```
+
+### Read the accuracy correctly
+
+Test accuracy is 0.826 against a 0.529 majority-class baseline. That gap is not
+predictive skill and it is not a lookahead bug, the split and the features are
+causal. It is the bid-ask bounce. Trades print at the bid or at the ask depending
+on which side was aggressive, so `price[i+H] > price[i]` mostly asks which side of
+the spread the later trade landed on, and trade signs stay autocorrelated at lag 20
+(rho 0.448) because large orders are split into many aggTrades. Measured on the
+test split: P(up | trade at i+H was a buy) = 0.765 versus 0.120 for a sell, and the
+one-bit rule "copy the side of the current trade" already scores 0.764. None of it
+is tradeable, the spread eats it.
+
+This is fine for what the model is here to do, which is be one fixed function every
+backend computes identically. Labeling off the mid-quote instead of the trade price
+would remove the effect, but aggTrades carries no quote data.
+
+### C++ forward pass matches the reference
 
 The C++ side loads the same model and must compute the identical logit. `match_model`
 reads `model.meta` + `model.bin`, runs the C++ forward pass (standardize, then
