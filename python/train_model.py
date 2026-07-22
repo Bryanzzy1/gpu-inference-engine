@@ -143,6 +143,7 @@ def export(model, mean, std, out, in_dim):
         input_names=["features"], output_names=["logit"],
         dynamic_axes={"features": {0: "batch"}, "logit": {0: "batch"}},
         opset_version=17,
+        verbose=False,
     )
     return meta
 
