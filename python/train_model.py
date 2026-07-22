@@ -22,7 +22,7 @@ import pandas as pd
 import torch
 import torch.nn as nn
 
-# Stationary inputs. Raw mid price is dropped (it drifts) and replaced by ret_1.
+# Stationary inputs. Raw mid price is dropped and replaced by ret_1.
 FEATURES = ["ret_1", "volatility", "imbalance", "intensity"]
 HIDDEN = [16, 16]
 SEED = 0
