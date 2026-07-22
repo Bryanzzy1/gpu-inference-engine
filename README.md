@@ -161,3 +161,27 @@ correctness bug.
 cmake --build build --target match_model
 ./build/match_model data/model   # prints max abs error and MATCH / MISMATCH
 ```
+
+## The latency harness
+
+The metric is the tail, so the measurement tool records the whole distribution.
+`LatencyHarness` times any callable, discards warm-up iterations, keeps every
+sample, and reports p50 / p99 / p999 / max / IQR in nanoseconds. It is generic, so
+the four backends all reuse it unchanged. The clock is `std::chrono::steady_clock`:
+monotonic and portable, with `rdtsc` left as a one-line swap if the timer itself
+ever becomes the floor. A replay mode fires events at a controlled inter-arrival
+rate, which drives the load axis of the frontier later.
+
+`bench_model` wires the CPU forward pass to the harness. It parses trades, rebuilds
+the model input rows, cycles them through `Model::forward`, and accumulates the
+output logit into a sink so the compiler cannot delete the timed call.
+
+```bash
+cmake --build build --target bench_model
+# bench_model <trades.csv> <model-stem> [warmup] [iters] [rate_hz]
+./build/bench_model data/BTCUSDT-aggTrades-2026-06-27.csv data/model
+```
+
+Note: on Windows `steady_clock` resolution is about 100 ns, which is coarse next to
+a sub-microsecond forward pass, so low percentiles quantize to ~100 ns steps. The
+GPU backends run longer per call, where this granularity stops mattering.
