@@ -147,6 +147,52 @@ def export(model, mean, std, out, in_dim):
     return meta
 
 
+def write_manifest(meta, out):
+    """Flat-text manifest the C++ loader reads with plain >> (no JSON library).
+
+    Format (whitespace-separated, one field per token, comments start with #):
+        input_dim <n>
+        output_dim <n>
+        scaler_mean <v0> <v1> ...        # input_dim values
+        scaler_std  <v0> <v1> ...        # input_dim values
+        num_layers <k>                   # number of Linear layers
+        layer <out> <in>                 # repeated k times, in forward order
+        bin <path to model.bin>
+    The .bin holds float32 weights then biases per layer, row-major, in this order.
+    """
+    lines = []
+    lines.append("# gpu-inference-engine model manifest")
+    lines.append(f"input_dim {meta['input_dim']}")
+    lines.append(f"output_dim {meta['output_dim']}")
+    lines.append("scaler_mean " + " ".join(repr(v) for v in meta["scaler_mean"]))
+    lines.append("scaler_std " + " ".join(repr(v) for v in meta["scaler_std"]))
+
+    # Each Linear contributes a weight [out, in] then a bias [out] in meta.layers.
+    weights = [l for l in meta["layers"] if l["name"].endswith(".weight")]
+    lines.append(f"num_layers {len(weights)}")
+    for w in weights:
+        out_dim, in_dim = w["shape"]
+        lines.append(f"layer {out_dim} {in_dim}")
+    lines.append(f"bin {Path(out).name}.bin")
+    Path(f"{out}.meta").write_text("\n".join(lines) + "\n")
+
+
+def write_check(x_rows, logits, out):
+    """Reference rows for the C++ match test: raw (unscaled) features + torch logit.
+
+    C++ reads this, runs its own forward pass on the same raw features, and asserts
+    max|c++ - reference| < 1e-5. No torch needed at C++ run time.
+    Format: first line "<num_rows> <num_features>", then one row per line:
+        f0 f1 ... f{d-1} logit
+    """
+    n, d = x_rows.shape
+    lines = [f"{n} {d}"]
+    for i in range(n):
+        feats = " ".join(repr(float(v)) for v in x_rows[i])
+        lines.append(f"{feats} {repr(float(logits[i][0]))}")
+    Path(f"{out}.check").write_text("\n".join(lines) + "\n")
+
+
 def numpy_forward(x, meta, bin_path):
     """Re-run the forward pass in NumPy from the exported bytes. Reference for C++."""
     raw = np.frombuffer(Path(bin_path).read_bytes(), dtype=np.float32)
@@ -195,6 +241,7 @@ def main():
     print(f"test_acc {te_acc:.4f}  (baseline {base:.4f})")
 
     meta = export(model, mean, std, args.out, in_dim)
+    write_manifest(meta, args.out)
 
     # Prove the export: torch logits vs NumPy-from-bytes on the first test rows.
     sample = x_te[:256]
@@ -205,7 +252,13 @@ def main():
     print(f"export self-check max|torch - numpy| = {max_err:.3e}")
     assert max_err < 1e-5, "export mismatch: fix before writing the C++ loader"
 
-    print(f"wrote {args.out}.json  {args.out}.bin  {args.out}.onnx")
+    # Reference rows for the C++ match test: RAW (unscaled) features + torch logit.
+    # x[te] is pre-standardization; C++ will standardize with the exported mean/std.
+    raw_sample = x[te][:256]
+    write_check(raw_sample, torch_logits, args.out)
+
+    print(f"wrote {args.out}.meta  {args.out}.bin  {args.out}.json  "
+          f"{args.out}.onnx  {args.out}.check")
 
 
 if __name__ == "__main__":
