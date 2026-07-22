@@ -120,12 +120,26 @@ standardized on the train split only, and the train/val/test split is time-order
 (no shuffle) so the model never sees future rows. Raw mid price is replaced by its
 log return, which is stationary.
 
-Training exports three files to `data/`: `model.json` (architecture, feature list,
-scaler mean/std), `model.bin` (float32 weights, row-major), and `model.onnx`. The
-script re-runs the forward pass in NumPy from the exported bytes and checks it
-matches PyTorch, so the C++ loader has a proven reference.
+Training exports to `data/`: `model.meta` (flat-text manifest the C++ loader reads
+with no JSON dependency), `model.bin` (float32 weights, row-major, weights then bias
+per layer), `model.json` and `model.onnx` (reference and the later TensorRT path),
+and `model.check` (raw feature rows + reference logits for the C++ match test). The
+script also re-runs the forward pass in NumPy from the exported bytes and asserts it
+matches PyTorch within 1e-5, so the export format is proven before any C++ runs.
 
 ```bash
 python -m pip install -r python/requirements.txt
 python python/train_model.py data/features.csv --out data/model
+```
+
+The C++ side loads the same model and must compute the identical logit. `match_model`
+reads `model.meta` + `model.bin`, runs the C++ forward pass (standardize, then
+`W x + b` and ReLU per hidden layer), and checks every row of `model.check` against
+the Python reference within 1e-5. This "match the reference" step is what lets the
+later GPU backends be trusted: any latency difference between backends is real, not a
+correctness bug.
+
+```bash
+cmake --build build --target match_model
+./build/match_model data/model   # prints max abs error and MATCH / MISMATCH
 ```

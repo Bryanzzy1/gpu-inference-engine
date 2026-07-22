@@ -22,3 +22,7 @@ target_compile_features(parse_trades PRIVATE cxx_std_17)
 # Feature + label CSV builder.
 add_executable(build_features src/build_features.cpp src/parser.cpp src/features.cpp)
 target_compile_features(build_features PRIVATE cxx_std_17)
+
+# C++ model forward pass vs the Python reference.
+add_executable(match_model src/match_model.cpp src/model.cpp)
+target_compile_features(match_model PRIVATE cxx_std_17)
