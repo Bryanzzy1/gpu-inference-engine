@@ -22,7 +22,7 @@ import pandas as pd
 import torch
 import torch.nn as nn
 
-# Stationary inputs. Raw mid price is dropped (it drifts) and replaced by ret_1.
+# Stationary inputs. Raw mid price is dropped and replaced by ret_1.
 FEATURES = ["ret_1", "volatility", "imbalance", "intensity"]
 HIDDEN = [16, 16]
 SEED = 0
@@ -143,6 +143,7 @@ def export(model, mean, std, out, in_dim):
         input_names=["features"], output_names=["logit"],
         dynamic_axes={"features": {0: "batch"}, "logit": {0: "batch"}},
         opset_version=17,
+        verbose=False,
     )
     return meta
 

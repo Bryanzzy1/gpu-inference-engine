@@ -6,3 +6,5 @@ numpy
 matplotlib
 torch
 onnx
+# torch's ONNX exporter needs onnxscript at runtime, it is not pulled in by torch.
+onnxscript
