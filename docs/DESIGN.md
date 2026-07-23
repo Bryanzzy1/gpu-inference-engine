@@ -108,16 +108,9 @@ Each layer works on its own, and the harder layers build on the simpler ones:
 The project stands if it stops at the floor, and each later layer answers a
 further question.
 
-## Roadmap
+## Depth targets
 
-| Milestone | Content | State |
-| --- | --- | --- |
-| **M1** | CPU pipeline: parser, four features + label CSV, tiny MLP trained + exported, C++ forward pass matched to the reference, tail-latency harness | done |
-| **M2** | CUDA fundamentals in a separate learning repo: vector add, parallel reduction, tiled matmul vs cuBLAS, streams + pinned memory, kernel-launch cost, a minimal persistent-kernel + ring prototype. Every step Nsight-profiled | next |
-| **M3** | GPU feature kernels; naive request-response and CUDA Graphs backends behind the `InferenceEngine` interface; the first measured 2D frontier; the jitter autopsy begins here | |
-| **M4** | Persistent megakernel + host↔device ring; the jitter autopsy completed; static frontier routing, then the closed-loop SLA controller | |
-
-Depth targets, in priority order:
+In priority order:
 
 1. **The persistent megakernel done for real**, not as a label. This is the primary
    CUDA teacher: persistent/grid-resident kernels, the CUDA memory model
