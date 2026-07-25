@@ -29,6 +29,11 @@ public:
     int input_dim() const { return input_dim_; }
     int output_dim() const { return output_dim_; }
 
+    // Read access for other backends that upload the same weights (e.g. the GPU).
+    const std::vector<Layer>& layers() const { return layers_; }
+    const std::vector<float>& scaler_mean() const { return scaler_mean_; }
+    const std::vector<float>& scaler_std() const { return scaler_std_; }
+
 private:
     int input_dim_ = 0;
     int output_dim_ = 0;
