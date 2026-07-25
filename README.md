@@ -90,6 +90,23 @@ cmake --build build
 ./build/hello
 ```
 
+### GPU backend (nvcc)
+
+The GPU backend builds separately from the CMake targets, because `nvcc` on Windows
+needs the MSVC host compiler, not the MinGW g++ the CMake build uses. Load the MSVC
+environment (`vcvars64.bat`) first, then compile everything in one `nvcc` call:
+
+```bash
+nvcc -O2 -arch=sm_89 -std=c++17 -Iinclude \
+  src/bench_gpu.cpp src/gpu_model.cu src/parser.cpp src/features.cpp \
+  src/model.cpp src/latency.cpp -o build/bench_gpu.exe
+./build/bench_gpu.exe data/BTCUSDT-aggTrades-2026-06-27.csv data/model
+```
+
+`-arch=sm_89` targets the local GPU (Ada) natively so the driver loads SASS directly.
+`bench_gpu` first checks the GPU forward pass matches the CPU one, then times both on
+the same harness.
+
 ## Features implemented so far
 
 The CPU pipeline reads trades, computes features over a rolling window, and
