@@ -10,7 +10,7 @@
 // uploaded once by load() and stay resident on the device. Same math as
 // Model::forward, so results match within float tolerance.
 //
-// This is the naive baseline backend: it deliberately pays the launch + PCIe cost on
+// This is the naive baseline backend: deliberately pays the launch + PCIe cost on
 // every event, which is the cost the frontier measures at batch size one.
 //
 // Header stays free of CUDA syntax so plain .cpp drivers can include it; the kernel
@@ -37,14 +37,17 @@ private:
     int input_dim_ = 0;
     int output_dim_ = 0;
     int num_layers_ = 0;
-    int max_dim_ = 0; // widest layer, sets the block size and shared-memory size
+    int max_dim_ = 0;
 
     // Device buffers (resident weights + per-call in/out).
     float* d_mean_ = nullptr;
     float* d_std_ = nullptr;
     float* d_weights_ = nullptr;
     float* d_biases_ = nullptr;
-    void* d_layers_ = nullptr; // LayerDesc[num_layers_], opaque to this header
+
+    // LayerDesc[num_layers_], opaque to this header
+    void* d_layers_ = nullptr; 
+
     float* d_in_ = nullptr;
     float* d_out_ = nullptr;
 };
