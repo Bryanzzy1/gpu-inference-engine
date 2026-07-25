@@ -12,8 +12,8 @@ namespace {
 struct LayerDesc {
     int out_dim;
     int in_dim;
-    int w_off; // start of this layer's weights in the flat weights array
-    int b_off; // start of this layer's biases in the flat biases array
+    int w_off; 
+    int b_off;
 };
 
 void cuda_check(cudaError_t e, const char* what) {
@@ -54,7 +54,7 @@ __global__ void forward_kernel(const float* mean, const float* stdv,
         nxt = tmp;
     }
 
-    if (t == 0) out[0] = cur[0]; // single logit
+    if (t == 0) out[0] = cur[0];
 }
 
 } // namespace
