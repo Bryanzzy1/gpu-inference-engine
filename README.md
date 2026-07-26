@@ -107,6 +107,29 @@ nvcc -O2 -arch=sm_89 -std=c++17 -Iinclude \
 `bench_gpu` first checks the GPU forward pass matches the CPU one, then times both on
 the same harness.
 
+### Persistent megakernel (nvcc)
+
+The persistent backend launches one kernel that never exits: it spins on a lock-free
+ring in pinned host memory, runs the forward pass on each input the host enqueues, and
+writes the logit back, so it pays no per-event launch cost. Build it alongside the
+naive path:
+
+```bash
+nvcc -O2 -arch=sm_89 -std=c++17 -Iinclude \
+  src/bench_persistent.cpp src/gpu_model.cu src/persistent_model.cu \
+  src/parser.cpp src/features.cpp src/model.cpp src/latency.cpp -o build/bench_persistent.exe
+./build/bench_persistent.exe data/BTCUSDT-aggTrades-2026-06-27.csv data/model
+```
+
+`bench_persistent` checks CPU, naive GPU, and persistent GPU all agree, then times all
+three. On this dataset the persistent kernel cuts p999 to roughly a tenth of the naive
+path by removing launch overhead, though the in-cache CPU still wins at batch size one.
+
+Windows note: the kernel busy-spins, so the 2s WDDM TDR watchdog resets the GPU if it
+runs too long. The backend exposes `start()` / `stop()` and the benchmark keeps that
+window under 2s and caps the persistent iteration count. A production persistent kernel
+wants the GPU in TCC mode or on Linux, where there is no display watchdog.
+
 ## Features implemented so far
 
 The CPU pipeline reads trades, computes features over a rolling window, and
