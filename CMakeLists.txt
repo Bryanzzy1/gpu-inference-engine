@@ -37,3 +37,9 @@ target_compile_features(match_model PRIVATE cxx_std_17)
 # Tail-latency benchmark of the CPU forward pass.
 add_executable(bench_model src/bench_model.cpp src/model.cpp src/parser.cpp src/features.cpp src/latency.cpp)
 target_compile_features(bench_model PRIVATE cxx_std_17)
+
+# SPSC lock-free ring self-check (one producer thread, one consumer thread).
+add_executable(test_ring src/test_ring.cpp)
+target_compile_features(test_ring PRIVATE cxx_std_17)
+find_package(Threads REQUIRED)
+target_link_libraries(test_ring PRIVATE Threads::Threads)
