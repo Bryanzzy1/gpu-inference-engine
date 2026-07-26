@@ -6,15 +6,9 @@
 #include <stdexcept>
 #include <string>
 
-namespace {
+#include "mlp_forward.cuh"
 
-// A layer's shape plus its offsets into the flat weight/bias arrays.
-struct LayerDesc {
-    int out_dim;
-    int in_dim;
-    int w_off; 
-    int b_off;
-};
+namespace {
 
 void cuda_check(cudaError_t e, const char* what) {
     if (e != cudaSuccess) {
@@ -23,38 +17,13 @@ void cuda_check(cudaError_t e, const char* what) {
     }
 }
 
-// One-block forward pass over the tiny MLP. blockDim.x must be >= every layer dim.
-// Standardize the input, then (Linear, ReLU) per hidden layer and a final Linear.
-// Shared memory is two activation buffers of blockDim.x floats, swapped per layer.
+// Naive request-response kernel: one launch per event, runs the shared forward pass.
 __global__ void forward_kernel(const float* mean, const float* stdv,
                                const float* weights, const float* biases,
                                const LayerDesc* layers, int num_layers,
                                int input_dim, const float* in, float* out) {
     extern __shared__ float smem[];
-    float* cur = smem;                // activations into this layer
-    float* nxt = smem + blockDim.x;   // activations out of this layer
-    const int t = static_cast<int>(threadIdx.x);
-
-    // Standardize the raw input into cur (same as Python before the net).
-    if (t < input_dim) cur[t] = (in[t] - mean[t]) / stdv[t];
-    __syncthreads();
-
-    for (int li = 0; li < num_layers; ++li) {
-        const LayerDesc L = layers[li];
-        if (t < L.out_dim) {
-            float acc = biases[L.b_off + t];
-            const float* wrow = weights + L.w_off + t * L.in_dim;
-            for (int i = 0; i < L.in_dim; ++i) acc += wrow[i] * cur[i];
-            if (li + 1 < num_layers && acc < 0.0f) acc = 0.0f; // ReLU on hidden only
-            nxt[t] = acc;
-        }
-        __syncthreads(); // nxt fully written before it becomes cur
-        float* tmp = cur;
-        cur = nxt;
-        nxt = tmp;
-    }
-
-    if (t == 0) out[0] = cur[0];
+    mlp_forward(mean, stdv, weights, biases, layers, num_layers, input_dim, in, out, smem);
 }
 
 } // namespace
