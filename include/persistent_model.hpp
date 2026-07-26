@@ -3,6 +3,7 @@
 
 #include <vector>
 
+#include "gpu_weights.hpp"
 #include "model.hpp"
 
 // Persistent-megakernel backend. The kernel is launched once and never exits: it
@@ -34,23 +35,13 @@ public:
     // Enqueue one input, spin until the kernel returns its logit. Requires start().
     float forward(const std::vector<float>& in);
 
-    int input_dim() const { return input_dim_; }
-    int output_dim() const { return output_dim_; }
+    int input_dim() const { return w_.input_dim; }
+    int output_dim() const { return w_.output_dim; }
 
 private:
     void release() noexcept;
 
-    int input_dim_ = 0;
-    int output_dim_ = 0;
-    int num_layers_ = 0;
-    int max_dim_ = 0;
-
-    // Resident weights (device memory).
-    float* d_mean_ = nullptr;
-    float* d_std_ = nullptr;
-    float* d_weights_ = nullptr;
-    float* d_biases_ = nullptr;
-    void* d_layers_ = nullptr; // LayerDesc[num_layers_], opaque to this header
+    GpuWeights w_; // resident weights, shared upload path
 
     // Ring in pinned (page-locked) host memory the GPU maps directly. Host pointers
     // for the CPU side; the kernel gets the matching device pointers internally.
