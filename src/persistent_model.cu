@@ -63,54 +63,14 @@ __global__ void persistent_kernel(const float* mean, const float* stdv,
 
 void PersistentModel::load(const Model& cpu) {
     release();
-
-    input_dim_ = cpu.input_dim();
-    output_dim_ = cpu.output_dim();
-    num_layers_ = static_cast<int>(cpu.layers().size());
-
-    // Flatten weights/biases and record per-layer offsets.
-    // ponytail: duplicated from GpuModel::load; each backend owns its own device
-    // memory, factor into a shared uploader only if a third backend needs it.
-    std::vector<float> weights;
-    std::vector<float> biases;
-    std::vector<LayerDesc> descs;
-    max_dim_ = cpu.input_dim();
-    for (const Layer& L : cpu.layers()) {
-        LayerDesc d;
-        d.out_dim = L.out_dim;
-        d.in_dim = L.in_dim;
-        d.w_off = static_cast<int>(weights.size());
-        d.b_off = static_cast<int>(biases.size());
-        weights.insert(weights.end(), L.weight.begin(), L.weight.end());
-        biases.insert(biases.end(), L.bias.begin(), L.bias.end());
-        descs.push_back(d);
-        max_dim_ = std::max(max_dim_, L.out_dim);
-    }
+    w_.upload(cpu);
 
     const auto fbytes = [](std::size_t n) { return n * sizeof(float); };
-    LayerDesc* d_layers = nullptr;
-    cuda_check(cudaMalloc(&d_mean_, fbytes(cpu.scaler_mean().size())), "malloc mean");
-    cuda_check(cudaMalloc(&d_std_, fbytes(cpu.scaler_std().size())), "malloc std");
-    cuda_check(cudaMalloc(&d_weights_, fbytes(weights.size())), "malloc weights");
-    cuda_check(cudaMalloc(&d_biases_, fbytes(biases.size())), "malloc biases");
-    cuda_check(cudaMalloc(&d_layers, descs.size() * sizeof(LayerDesc)), "malloc layers");
-    d_layers_ = d_layers;
-
-    cuda_check(cudaMemcpy(d_mean_, cpu.scaler_mean().data(),
-                          fbytes(cpu.scaler_mean().size()), cudaMemcpyHostToDevice), "cp mean");
-    cuda_check(cudaMemcpy(d_std_, cpu.scaler_std().data(),
-                          fbytes(cpu.scaler_std().size()), cudaMemcpyHostToDevice), "cp std");
-    cuda_check(cudaMemcpy(d_weights_, weights.data(),
-                          fbytes(weights.size()), cudaMemcpyHostToDevice), "cp weights");
-    cuda_check(cudaMemcpy(d_biases_, biases.data(),
-                          fbytes(biases.size()), cudaMemcpyHostToDevice), "cp biases");
-    cuda_check(cudaMemcpy(d_layers, descs.data(),
-                          descs.size() * sizeof(LayerDesc), cudaMemcpyHostToDevice), "cp layers");
 
     // Pinned, mapped ring: host RAM the GPU reads/writes directly over PCIe.
-    cuda_check(cudaHostAlloc(&h_in_ring_, fbytes(CAPACITY * input_dim_),
+    cuda_check(cudaHostAlloc(&h_in_ring_, fbytes(CAPACITY * w_.input_dim),
                              cudaHostAllocMapped), "hostalloc in");
-    cuda_check(cudaHostAlloc(&h_out_ring_, fbytes(CAPACITY * output_dim_),
+    cuda_check(cudaHostAlloc(&h_out_ring_, fbytes(CAPACITY * w_.output_dim),
                              cudaHostAllocMapped), "hostalloc out");
     cuda_check(cudaHostAlloc(&h_ctrl_, 3 * sizeof(unsigned),
                              cudaHostAllocMapped), "hostalloc ctrl");
@@ -132,12 +92,12 @@ void PersistentModel::start() {
     cuda_check(cudaStreamCreate(&stream), "stream create");
     stream_ = stream;
 
-    const int threads = max_dim_;
+    const int threads = w_.max_dim;
     const std::size_t shmem = 2u * static_cast<std::size_t>(threads) * sizeof(float);
     persistent_kernel<<<1, threads, shmem, stream>>>(
-        d_mean_, d_std_, d_weights_, d_biases_,
-        static_cast<const LayerDesc*>(d_layers_), num_layers_,
-        input_dim_, output_dim_, d_in_ring_, d_out_ring_,
+        w_.mean, w_.stdv, w_.weights, w_.biases,
+        w_.layers, w_.num_layers,
+        w_.input_dim, w_.output_dim, d_in_ring_, d_out_ring_,
         reinterpret_cast<volatile unsigned*>(d_ctrl_));
     cuda_check(cudaGetLastError(), "kernel launch");
     // Windows WDDM batches launches in a command buffer and does not push them to the
@@ -166,15 +126,15 @@ float PersistentModel::forward(const std::vector<float>& in) {
 
     while (h - ctrl[TAIL] == CAPACITY) { /* ring full, wait for the kernel */ }
 
-    float* dst = h_in_ring_ + slot * input_dim_;
-    for (int i = 0; i < input_dim_; ++i) dst[i] = in[i];
+    float* dst = h_in_ring_ + slot * w_.input_dim;
+    for (int i = 0; i < w_.input_dim; ++i) dst[i] = in[i];
     std::atomic_thread_fence(std::memory_order_release); // input written before head moves
     ctrl[HEAD] = h + 1;
     next_head_ = h + 1;
 
     while (ctrl[TAIL] != h + 1) { /* spin until the kernel finishes this one */ }
     std::atomic_thread_fence(std::memory_order_acquire); // read output after tail seen
-    return h_out_ring_[slot * output_dim_];
+    return h_out_ring_[slot * w_.output_dim];
 }
 
 void PersistentModel::release() noexcept {
@@ -184,13 +144,7 @@ void PersistentModel::release() noexcept {
     if (h_ctrl_) { cudaFreeHost(h_ctrl_); h_ctrl_ = nullptr; }
     d_in_ring_ = d_out_ring_ = nullptr; // alias the freed pinned buffers
     d_ctrl_ = nullptr;
-    cudaFree(d_mean_);
-    cudaFree(d_std_);
-    cudaFree(d_weights_);
-    cudaFree(d_biases_);
-    cudaFree(d_layers_);
-    d_mean_ = d_std_ = d_weights_ = d_biases_ = nullptr;
-    d_layers_ = nullptr;
+    w_.free();
     launched_ = false;
 }
 

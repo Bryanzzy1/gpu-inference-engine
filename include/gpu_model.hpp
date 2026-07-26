@@ -3,6 +3,7 @@
 
 #include <vector>
 
+#include "gpu_weights.hpp"
 #include "model.hpp"
 
 // GPU forward pass for the tiny MLP, naive request-response style: per call it copies
@@ -28,28 +29,15 @@ public:
     // Naive request-response forward on one raw feature vector. Returns the logit.
     float forward(const std::vector<float>& in);
 
-    int input_dim() const { return input_dim_; }
-    int output_dim() const { return output_dim_; }
+    int input_dim() const { return w_.input_dim; }
+    int output_dim() const { return w_.output_dim; }
 
 private:
     void release() noexcept;
 
-    int input_dim_ = 0;
-    int output_dim_ = 0;
-    int num_layers_ = 0;
-    int max_dim_ = 0;
-
-    // Device buffers (resident weights + per-call in/out).
-    float* d_mean_ = nullptr;
-    float* d_std_ = nullptr;
-    float* d_weights_ = nullptr;
-    float* d_biases_ = nullptr;
-
-    // LayerDesc[num_layers_], opaque to this header
-    void* d_layers_ = nullptr; 
-
-    float* d_in_ = nullptr;
-    float* d_out_ = nullptr;
+    GpuWeights w_;               // resident weights, shared upload path
+    float* d_in_ = nullptr;      // per-call input buffer
+    float* d_out_ = nullptr;     // per-call output buffer
 };
 
 #endif
