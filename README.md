@@ -130,6 +130,26 @@ runs too long. The backend exposes `start()` / `stop()` and the benchmark keeps 
 window under 2s and caps the persistent iteration count. A production persistent kernel
 wants the GPU in TCC mode or on Linux, where there is no display watchdog.
 
+### CUDA Graphs (nvcc)
+
+The graph backend records the copy-launch-copy sequence once and replays it with a
+single `cudaGraphLaunch` per call, so the driver schedules the sequence once instead of
+on every event. Build and run:
+
+```bash
+nvcc -O2 -arch=sm_89 -std=c++17 -Iinclude \
+  src/bench_graph.cpp src/gpu_model.cu src/graph_model.cu src/gpu_weights.cu \
+  src/parser.cpp src/features.cpp src/model.cpp src/latency.cpp -o build/bench_graph.exe
+./build/bench_graph.exe data/BTCUSDT-aggTrades-2026-06-27.csv data/model
+```
+
+Measured finding: for this workload the graph is correct but not faster than the naive
+path. The graph holds a single tiny kernel, so there is almost no per-launch cost to
+amortize, and on WDDM the per-call synchronization dominates both paths. CUDA Graphs pay
+off on many-kernel pipelines or on Linux, not on a single fused kernel behind a per-call
+sync. The launch-overhead win in this project comes from the persistent megakernel, not
+graphs.
+
 ## Features implemented so far
 
 The CPU pipeline reads trades, computes features over a rolling window, and
