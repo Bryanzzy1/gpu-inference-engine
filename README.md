@@ -31,18 +31,6 @@ on identical input.
 | **GPU + CUDA Graphs** | the launch sequence recorded once and replayed, which cuts launch overhead. |
 | **GPU persistent megakernel** | one resident kernel fed tick by tick through a lock-free pinned ring. No per-event launch. |
 
-## Milestones
-
-| Milestone | What it adds | Status |
-| --- | --- | --- |
-| **M1** | CPU tick→prediction pipeline (features, model, C++ forward pass) + latency harness recording full distributions and jitter (no CUDA) | In progress |
-| M2 | CUDA fundamentals in a separate learning repo; ring-buffer and persistent-kernel patterns | |
-| M3 | GPU feature kernels; first 2D (batch × load) frontier: CPU vs naive GPU vs CUDA Graphs | |
-| M4 | GPU inference path (cuBLAS + 1 fused kernel), then the **persistent megakernel** and the **SLA controller** | |
-
-Each milestone works on its own. M3 produces the first frontier; M4 adds the
-persistent megakernel and the controller.
-
 ## Repository layout
 
 ```
