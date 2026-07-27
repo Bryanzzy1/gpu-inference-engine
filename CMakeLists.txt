@@ -20,26 +20,26 @@ if(MINGW)
 endif()
 
 # Toolchain smoke test.
-add_executable(hello src/hello.cpp)
+add_executable(hello src/tools/hello.cpp)
 
 # Tick parser.
-add_executable(parse_trades src/main.cpp src/parser.cpp)
+add_executable(parse_trades src/io/main.cpp src/io/parser.cpp)
 target_compile_features(parse_trades PRIVATE cxx_std_17)
 
 # Feature + label CSV builder.
-add_executable(build_features src/build_features.cpp src/parser.cpp src/features.cpp)
+add_executable(build_features src/io/build_features.cpp src/io/parser.cpp src/io/features.cpp)
 target_compile_features(build_features PRIVATE cxx_std_17)
 
 # C++ model forward pass vs the Python reference.
-add_executable(match_model src/match_model.cpp src/model.cpp)
+add_executable(match_model src/cpu/match_model.cpp src/cpu/model.cpp)
 target_compile_features(match_model PRIVATE cxx_std_17)
 
 # Tail-latency benchmark of the CPU forward pass.
-add_executable(bench_model src/bench_model.cpp src/model.cpp src/parser.cpp src/features.cpp src/latency.cpp)
+add_executable(bench_model src/bench/bench_model.cpp src/cpu/model.cpp src/io/parser.cpp src/io/features.cpp src/cpu/latency.cpp)
 target_compile_features(bench_model PRIVATE cxx_std_17)
 
 # SPSC lock-free ring self-check (one producer thread, one consumer thread).
-add_executable(test_ring src/test_ring.cpp)
+add_executable(test_ring src/tools/test_ring.cpp)
 target_compile_features(test_ring PRIVATE cxx_std_17)
 find_package(Threads REQUIRED)
 target_link_libraries(test_ring PRIVATE Threads::Threads)

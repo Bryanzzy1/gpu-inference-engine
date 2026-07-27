@@ -35,9 +35,15 @@ on identical input.
 
 ```
 gpu-inference-trading/
-  CMakeLists.txt      # build (Day 1: hello-CMake target)
-  src/                # C++ source (parser, features, harness: M1)
-  python/             # data download/inspection now; model training later
+  CMakeLists.txt      # build
+  include/            # headers (flat)
+  src/
+    io/               # parser, features, CSV builders
+    cpu/              # CPU model forward pass, latency harness, match check
+    gpu/              # CUDA backends: naive, graph, persistent, weights
+    bench/            # benchmark drivers per backend
+    tools/            # hello smoke test, ring self-check
+  python/             # data download/inspection and model training
   data/               # raw CSVs (gitignored, re-fetch with download_data.py)
   README.md
 ```
@@ -86,8 +92,8 @@ environment (`vcvars64.bat`) first, then compile everything in one `nvcc` call:
 
 ```bash
 nvcc -O2 -arch=sm_89 -std=c++17 -Iinclude \
-  src/bench_gpu.cpp src/gpu_model.cu src/parser.cpp src/features.cpp \
-  src/model.cpp src/latency.cpp -o build/bench_gpu.exe
+  src/bench/bench_gpu.cpp src/gpu/gpu_model.cu src/io/parser.cpp src/io/features.cpp \
+  src/cpu/model.cpp src/cpu/latency.cpp -o build/bench_gpu.exe
 ./build/bench_gpu.exe data/BTCUSDT-aggTrades-2026-06-27.csv data/model
 ```
 
@@ -104,8 +110,8 @@ naive path:
 
 ```bash
 nvcc -O2 -arch=sm_89 -std=c++17 -Iinclude \
-  src/bench_persistent.cpp src/gpu_model.cu src/persistent_model.cu \
-  src/parser.cpp src/features.cpp src/model.cpp src/latency.cpp -o build/bench_persistent.exe
+  src/bench/bench_persistent.cpp src/gpu/gpu_model.cu src/gpu/persistent_model.cu \
+  src/io/parser.cpp src/io/features.cpp src/cpu/model.cpp src/cpu/latency.cpp -o build/bench_persistent.exe
 ./build/bench_persistent.exe data/BTCUSDT-aggTrades-2026-06-27.csv data/model
 ```
 
@@ -126,8 +132,8 @@ on every event. Build and run:
 
 ```bash
 nvcc -O2 -arch=sm_89 -std=c++17 -Iinclude \
-  src/bench_graph.cpp src/gpu_model.cu src/graph_model.cu src/gpu_weights.cu \
-  src/parser.cpp src/features.cpp src/model.cpp src/latency.cpp -o build/bench_graph.exe
+  src/bench/bench_graph.cpp src/gpu/gpu_model.cu src/gpu/graph_model.cu src/gpu/gpu_weights.cu \
+  src/io/parser.cpp src/io/features.cpp src/cpu/model.cpp src/cpu/latency.cpp -o build/bench_graph.exe
 ./build/bench_graph.exe data/BTCUSDT-aggTrades-2026-06-27.csv data/model
 ```
 
