@@ -34,7 +34,7 @@ on identical input.
 ## Repository layout
 
 ```
-gpu-inference-trading/
+gpu-inference-engine/
   CMakeLists.txt      # build
   include/            # headers (flat)
   src/
