@@ -82,7 +82,7 @@ ring, so no per-event launch. Cuts p999 ~10x vs naive.
 nvcc $FLAGS src/bench/bench_persistent.cpp src/gpu/gpu_model.cu src/gpu/persistent_model.cu $COMMON -o build/bench_persistent.exe
 ```
 
-**All four** - the headline table. Every backend gated on matching the CPU, timed together.
+**All four**
 ```bash
 nvcc $FLAGS src/bench/bench_all.cpp src/gpu/gpu_model.cu src/gpu/graph_model.cu src/gpu/gpu_weights.cu src/gpu/persistent_model.cu $COMMON -o build/bench_all.exe
 ```
