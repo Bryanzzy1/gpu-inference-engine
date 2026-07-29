@@ -38,6 +38,10 @@ target_compile_features(match_model PRIVATE cxx_std_17)
 add_executable(bench_model src/bench/bench_model.cpp src/cpu/model.cpp src/io/parser.cpp src/io/features.cpp src/cpu/latency.cpp)
 target_compile_features(bench_model PRIVATE cxx_std_17)
 
+# CPU sweep of the 2D frontier (batch x arrival rate). GPU version needs nvcc.
+add_executable(frontier_cpu src/bench/frontier_cpu.cpp src/bench/frontier.cpp src/cpu/model.cpp src/io/parser.cpp src/io/features.cpp src/cpu/latency.cpp)
+target_compile_features(frontier_cpu PRIVATE cxx_std_17)
+
 # SPSC lock-free ring self-check (one producer thread, one consumer thread).
 add_executable(test_ring src/tools/test_ring.cpp)
 target_compile_features(test_ring PRIVATE cxx_std_17)

@@ -143,3 +143,25 @@ amortize, and on WDDM the per-call synchronization dominates both paths. CUDA Gr
 off on many-kernel pipelines or on Linux, not on a single fused kernel behind a per-call
 sync. The launch-overhead win in this project comes from the persistent megakernel, not
 graphs.
+
+## The 2D frontier
+
+The headline artifact: a sweep over `(batch size x arrival rate)` recording each
+backend's p999, then a heatmap of which backend wins each cell. `frontier.hpp` holds
+the cell type, the sweep axes, and the CSV writer that every driver shares.
+
+`frontier_cpu` sweeps the CPU backend alone. It builds and runs with no GPU, so the
+sweep loop, batching, arrival-rate pacing, and CSV format are all verified on the CPU
+path before the GPU work. The four-backend GPU sweep reuses the same header and axes on
+a machine with nvcc.
+
+```bash
+cmake --build build --target frontier_cpu
+# frontier_cpu <trades.csv> <model-stem> <out.csv> [iters]
+./build/frontier_cpu data/BTCUSDT-aggTrades-2026-06-27.csv data/model data/frontier.csv
+python python/plot_frontier.py data/frontier.csv   # winner map + per-backend p999 maps
+```
+
+Axes default to batch `1..256` and rate `0` (unpaced) through `250 kHz`. The plot
+writes `frontier_winner.png` (the winning-backend heatmap) and one p999 heatmap per
+backend.
