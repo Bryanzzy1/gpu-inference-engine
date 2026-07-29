@@ -144,6 +144,23 @@ off on many-kernel pipelines or on Linux, not on a single fused kernel behind a 
 sync. The launch-overhead win in this project comes from the persistent megakernel, not
 graphs.
 
+### All four backends in one run (nvcc)
+
+`bench_all` is the defensible latency table: it loads all four backends, gates each on
+agreeing with the CPU forward pass within tolerance, then times them on the same
+harness at batch size one. Use this for the headline comparison.
+
+```bash
+nvcc -O2 -arch=sm_89 -std=c++17 -Iinclude \
+  src/bench/bench_all.cpp src/gpu/gpu_model.cu src/gpu/graph_model.cu src/gpu/gpu_weights.cu \
+  src/gpu/persistent_model.cu src/io/parser.cpp src/io/features.cpp src/cpu/model.cpp \
+  src/cpu/latency.cpp -o build/bench_all.exe
+./build/bench_all.exe data/BTCUSDT-aggTrades-2026-06-27.csv data/model
+```
+
+It prints a per-backend p50/p99/p999 table in microseconds with the transfer note per
+backend. No backend's numbers are shown unless it first matches the CPU logit.
+
 ## The 2D frontier
 
 The headline artifact: a sweep over `(batch size x arrival rate)` recording each
