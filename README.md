@@ -182,3 +182,8 @@ python python/plot_frontier.py data/frontier.csv   # winner map + per-backend p9
 Axes default to batch `1..256` and rate `0` (unpaced) through `250 kHz`. The plot
 writes `frontier_winner.png` (the winning-backend heatmap) and one p999 heatmap per
 backend.
+
+Caveat: on the CPU a batch of N is just N sequential `forward()` calls, so its batch
+axis scales linearly and is not a real batching result. `frontier_cpu` exists to verify
+the sweep, pacing, and CSV machinery without a GPU. The batch axis is only meaningful in
+the GPU sweep, where a batch is one kernel over N rows.
