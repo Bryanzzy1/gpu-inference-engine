@@ -1,0 +1,22 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+# Builds the CPU targets and runs the ring self-check. The GPU targets need nvcc
+# and a GPU, so they are out of scope for CI and built locally per the README.
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        run: cmake --build build
+
+      - name: Ring self-check
+        run: ./build/test_ring
