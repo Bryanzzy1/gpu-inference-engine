@@ -1,6 +1,8 @@
 # Python deps for the data + model scripts.
 # Install: python -m pip install -r requirements.txt
 # torch is CPU-only here (no local GPU); training this tiny MLP on CPU is fine.
+# Tested on Python 3.14 with pandas 3.0, numpy 2.5, matplotlib 3.11, torch 2.13,
+# onnx 1.22, onnxscript 0.7. Newer versions should work; pin these if a run breaks.
 pandas
 numpy
 matplotlib
