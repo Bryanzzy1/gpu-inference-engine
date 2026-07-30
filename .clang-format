@@ -1,0 +1,7 @@
+# Matches the existing style: 4-space indent, 100-column lines, attached braces.
+BasedOnStyle: Google
+IndentWidth: 4
+ColumnLimit: 100
+DerivePointerAlignment: false
+PointerAlignment: Left
+AllowShortFunctionsOnASingleLine: Inline
