@@ -8,6 +8,14 @@ build/
 *.obj
 *.exe
 *.out
+*.exp
+*.lib
+*.pdb
+
+# Nsight profiler output (from the GPU machine)
+*.nsys-rep
+*.ncu-rep
+*.sqlite
 
 # Python
 __pycache__/
