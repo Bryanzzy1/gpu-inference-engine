@@ -1,5 +1,7 @@
 # GPU Inference Engine for Trading Signals
 
+[![ci](https://github.com/Bryanzzy1/gpu-inference-engine/actions/workflows/ci.yml/badge.svg)](https://github.com/Bryanzzy1/gpu-inference-engine/actions/workflows/ci.yml)
+
 A C++/CUDA engine that turns a market tick stream into a short-horizon
 price-direction prediction, timed at microsecond granularity across a CPU path and
 three GPU paths.
