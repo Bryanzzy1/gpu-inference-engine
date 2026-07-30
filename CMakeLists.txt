@@ -12,6 +12,13 @@ endif()
 # Header search path.
 include_directories(${CMAKE_SOURCE_DIR}/include)
 
+# Warnings on for the CPU targets. GCC/Clang and MSVC take different flags.
+if(MSVC)
+  add_compile_options(/W4)
+else()
+  add_compile_options(-Wall -Wextra)
+endif()
+
 # On MinGW, link the GCC runtimes statically. Otherwise the exe loads whichever
 # libstdc++-6.dll is first on PATH, and an older one (Git for Windows ships its
 # own) makes the binaries segfault on launch.
