@@ -157,3 +157,17 @@ float Model::forward(const std::vector<float>& in) const {
 
     return a[0]; // single logit
 }
+
+void Model::forward_batch(const std::vector<float>& in, std::size_t n,
+                          std::vector<float>& out) const {
+    if (in.size() != n * static_cast<std::size_t>(input_dim_)) {
+        throw std::runtime_error("forward_batch: input size != n * input_dim");
+    }
+    out.resize(n);
+    std::vector<float> row(input_dim_);
+    for (std::size_t r = 0; r < n; ++r) {
+        const float* src = &in[r * static_cast<std::size_t>(input_dim_)];
+        for (int i = 0; i < input_dim_; ++i) row[i] = src[i];
+        out[r] = forward(row);
+    }
+}

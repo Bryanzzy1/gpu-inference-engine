@@ -26,6 +26,11 @@ public:
     // in.size() must equal input_dim().
     float forward(const std::vector<float>& in) const;
 
+    // Batched forward. in holds n rows of input_dim floats, row-major. Writes n
+    // logits to out. The reference the GPU batched kernels must match.
+    void forward_batch(const std::vector<float>& in, std::size_t n,
+                       std::vector<float>& out) const;
+
     int input_dim() const { return input_dim_; }
     int output_dim() const { return output_dim_; }
 
