@@ -27,6 +27,13 @@ public:
     // Overwrite the staged input, replay the graph, return the logit.
     float forward(const std::vector<float>& in);
 
+    // Batched forward: n rows in, n logits out. Must match Model::forward_batch.
+    // See batch.hpp. TODO: implement in graph_model.cu. A captured graph binds a
+    // fixed batch size, so batches larger than the captured one need one graph per
+    // batch size, keyed by n, or a re-capture when n changes.
+    void forward_batch(const std::vector<float>& in, std::size_t n,
+                       std::vector<float>& out);
+
     int input_dim() const { return w_.input_dim; }
     int output_dim() const { return w_.output_dim; }
 
