@@ -4,6 +4,7 @@
 // The four-backend GPU version (frontier_all) reuses frontier.hpp and the same axes on
 // a machine with nvcc.
 // Usage: frontier_cpu <trades.csv> <model-stem> <out.csv> [iters]
+#include <algorithm>
 #include <cmath>
 #include <cstdlib>
 #include <iostream>
@@ -74,6 +75,10 @@ int main(int argc, char** argv) {
     std::vector<FrontierCell> cells;
     std::size_t idx = 0;
     double sink = 0.0;
+    const int in_dim = cpu.input_dim();
+
+    std::vector<float> batch_in;
+    std::vector<float> batch_out;
 
     for (std::size_t batch : batches) {
         for (double rate : rates) {
@@ -83,12 +88,19 @@ int main(int argc, char** argv) {
             cfg.target_rate_hz = rate;
             LatencyHarness harness(cfg);
 
-            // One timed unit = one inference over a batch of `batch` rows.
+            batch_in.resize(batch * static_cast<std::size_t>(in_dim));
+
+            // One timed unit = one batched inference over `batch` rows, packed
+            // row-major, matching the GPU batched contract in batch.hpp.
             auto work = [&]() {
                 for (std::size_t b = 0; b < batch; ++b) {
-                    sink += cpu.forward(rows[idx]);
+                    const std::vector<float>& r = rows[idx];
+                    std::copy(r.begin(), r.end(),
+                              batch_in.begin() + b * static_cast<std::size_t>(in_dim));
                     if (++idx >= rows.size()) idx = 0;
                 }
+                cpu.forward_batch(batch_in, batch, batch_out);
+                for (float v : batch_out) sink += v;
             };
             FrontierCell cell;
             cell.backend = "cpu";
