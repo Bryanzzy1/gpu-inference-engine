@@ -29,6 +29,13 @@ public:
     // Naive request-response forward on one raw feature vector. Returns the logit.
     float forward(const std::vector<float>& in);
 
+    // Batched forward: n rows packed row-major in, n logits out. One H2D copy of
+    // n*input_dim floats, one kernel over n rows, one D2H copy of n logits. Must
+    // match Model::forward_batch. See batch.hpp. TODO: implement in gpu_model.cu;
+    // grow d_in_/d_out_ to hold the batch.
+    void forward_batch(const std::vector<float>& in, std::size_t n,
+                       std::vector<float>& out);
+
     int input_dim() const { return w_.input_dim; }
     int output_dim() const { return w_.output_dim; }
 
@@ -36,8 +43,9 @@ private:
     void release() noexcept;
 
     GpuWeights w_;               // resident weights, shared upload path
-    float* d_in_ = nullptr;      // per-call input buffer
-    float* d_out_ = nullptr;     // per-call output buffer
+    float* d_in_ = nullptr;      // per-call input buffer, sized for the max batch
+    float* d_out_ = nullptr;     // per-call output buffer, sized for the max batch
+    std::size_t cap_ = 0;        // rows the current buffers can hold
 };
 
 #endif
