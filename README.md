@@ -92,3 +92,23 @@ nvcc $FLAGS src/bench/bench_all.cpp src/gpu/gpu_model.cu src/gpu/graph_model.cu 
 **Windows note:** the persistent kernel busy-spins, so the 2s WDDM TDR watchdog resets
 the GPU if it runs too long. The driver keeps its live window under 2s. Production
 wants TCC mode or Linux, where there is no watchdog.
+
+## The 2D frontier
+
+Sweeps a backend over batch size x arrival rate and writes a CSV of per-cell p999;
+`python/plot_frontier.py` turns it into a winner heatmap. A batch is N rows through one
+inference; the contract is in `include/batch.hpp`.
+
+`frontier_cpu` (CMake) sweeps the CPU alone, verifying the sweep, pacing, and CSV with
+no GPU. On the CPU a batch is N sequential rows, so its batch axis is a control, not a
+result.
+
+```bash
+cmake --build build --target frontier_cpu
+./build/frontier_cpu data/BTCUSDT-aggTrades-2026-06-27.csv data/model data/frontier.csv
+python python/plot_frontier.py data/frontier.csv
+```
+
+`frontier_all` (nvcc) is the real thing: all four backends per cell, each gated on
+matching the CPU. It needs each GPU backend's `forward_batch` implemented first (the
+`.cu` TODOs), then builds like the other nvcc drivers plus `src/bench/frontier.cpp`.
