@@ -35,6 +35,14 @@ public:
     // Enqueue one input, spin until the kernel returns its logit. Requires start().
     float forward(const std::vector<float>& in);
 
+    // Batched forward: enqueue n rows, spin until n logits return. Must match
+    // Model::forward_batch. See batch.hpp. TODO: implement in persistent_model.cu.
+    // A ring slot must carry a full batch of input_dim*n floats, or the resident
+    // kernel must loop over n rows per slot; pick one and keep the head/tail fences
+    // correct for the larger payload.
+    void forward_batch(const std::vector<float>& in, std::size_t n,
+                       std::vector<float>& out);
+
     int input_dim() const { return w_.input_dim; }
     int output_dim() const { return w_.output_dim; }
 
