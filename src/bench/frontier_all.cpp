@@ -10,9 +10,8 @@
 //     src/gpu/persistent_model.cu src/io/parser.cpp src/io/features.cpp \
 //     src/cpu/model.cpp src/cpu/latency.cpp -o build/frontier_all.exe
 //
-// PREREQUISITE: every GPU backend must implement forward_batch (declared in the
-// headers, TODO in the .cu files). Until then this driver does not link. The batch
-// axis is only meaningful here, see batch.hpp; frontier_cpu is the CPU control.
+// The batch axis is only meaningful here, see batch.hpp; frontier_cpu is the CPU
+// control. Persistent is measured unpaced only (see the row-budget note below).
 //
 // Usage: frontier_all <trades.csv> <model-stem> <out.csv> [iters]
 #include <algorithm>
@@ -117,22 +116,29 @@ int main(int argc, char** argv) {
     std::size_t idx = 0;
     double sink = 0.0;
 
+    // Persistent runs unpaced only (rate 0). On Windows WDDM a resident busy-spinning
+    // kernel is reset by the 2s TDR watchdog, so a host-paced run (iters/rate seconds
+    // resident) always trips it, and even unpaced the live window grows with the rows
+    // processed. Cap the persistent window to a row budget so it stays under the
+    // watchdog; the CSV records the actual sample count per cell.
+    constexpr std::size_t kPersRowBudget = 300000;
+
     for (std::size_t batch : kFrontierBatches) {
         // Correctness gate per batch size, before timing anything at this size.
         pack(rows, idx, in_dim, batch, in);
         cpu.forward_batch(in, batch, ref);
-        pers.start();
         gpu.forward_batch(in, batch, got);
         const double m_gpu = batch_mismatch(got, ref);
         graph.forward_batch(in, batch, got);
         const double m_graph = batch_mismatch(got, ref);
+        pers.start();
         pers.forward_batch(in, batch, got);
+        pers.stop();
         const double m_pers = batch_mismatch(got, ref);
         if (std::max({m_gpu, m_graph, m_pers}) > 1e-4) {
             std::cerr << "FAIL: a backend disagrees at batch " << batch
                       << " (naive " << m_gpu << " graph " << m_graph
                       << " persistent " << m_pers << ")\n";
-            pers.stop();
             return 1;
         }
 
@@ -142,8 +148,8 @@ int main(int argc, char** argv) {
             cfg.iters = iters;
             cfg.target_rate_hz = rate;
 
-            auto run_backend = [&](const char* name, auto&& fn) {
-                LatencyHarness h(cfg);
+            auto run_backend = [&](const char* name, const HarnessConfig& c, auto&& fn) {
+                LatencyHarness h(c);
                 Stats s = h.run([&]() {
                     pack(rows, idx, in_dim, batch, in);
                     fn(in, batch, got);
@@ -152,14 +158,21 @@ int main(int argc, char** argv) {
                 cells.push_back({name, batch, rate, s});
             };
 
-            run_backend("cpu", [&](const std::vector<float>& i, std::size_t n, std::vector<float>& o) { cpu.forward_batch(i, n, o); });
-            run_backend("cuda-naive", [&](const std::vector<float>& i, std::size_t n, std::vector<float>& o) { gpu.forward_batch(i, n, o); });
-            run_backend("cuda-graphs", [&](const std::vector<float>& i, std::size_t n, std::vector<float>& o) { graph.forward_batch(i, n, o); });
-            run_backend("persistent", [&](const std::vector<float>& i, std::size_t n, std::vector<float>& o) { pers.forward_batch(i, n, o); });
+            run_backend("cpu", cfg, [&](const std::vector<float>& i, std::size_t n, std::vector<float>& o) { cpu.forward_batch(i, n, o); });
+            run_backend("cuda-naive", cfg, [&](const std::vector<float>& i, std::size_t n, std::vector<float>& o) { gpu.forward_batch(i, n, o); });
+            run_backend("cuda-graphs", cfg, [&](const std::vector<float>& i, std::size_t n, std::vector<float>& o) { graph.forward_batch(i, n, o); });
+
+            if (rate == 0.0) {
+                HarnessConfig pcfg = cfg;
+                pcfg.iters = std::max<std::size_t>(1000, std::min(iters, kPersRowBudget / batch));
+                pcfg.warmup = std::min<std::size_t>(cfg.warmup, pcfg.iters / 10);
+                pers.start();
+                run_backend("persistent", pcfg, [&](const std::vector<float>& i, std::size_t n, std::vector<float>& o) { pers.forward_batch(i, n, o); });
+                pers.stop();
+            }
 
             std::printf("batch=%-4zu rate=%-9.0f done\n", batch, rate);
         }
-        pers.stop();
     }
 
     write_frontier_csv(out_path, cells);
