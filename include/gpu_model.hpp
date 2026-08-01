@@ -30,9 +30,8 @@ public:
     float forward(const std::vector<float>& in);
 
     // Batched forward: n rows packed row-major in, n logits out. One H2D copy of
-    // n*input_dim floats, one kernel over n rows, one D2H copy of n logits. Must
-    // match Model::forward_batch. See batch.hpp. TODO: implement in gpu_model.cu;
-    // grow d_in_/d_out_ to hold the batch.
+    // n*input_dim floats, one kernel of n blocks (one row per block), one D2H copy of
+    // n logits. Grows d_in_/d_out_ to hold the batch. Matches Model::forward_batch.
     void forward_batch(const std::vector<float>& in, std::size_t n,
                        std::vector<float>& out);
 
@@ -41,6 +40,7 @@ public:
 
 private:
     void release() noexcept;
+    void ensure_capacity(std::size_t n); // grow d_in_/d_out_ to hold n rows
 
     GpuWeights w_;               // resident weights, shared upload path
     float* d_in_ = nullptr;      // per-call input buffer, sized for the max batch
