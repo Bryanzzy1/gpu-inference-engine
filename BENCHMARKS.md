@@ -75,15 +75,71 @@ tiny launches), with no thermal or power throttling (HwSlowdown never asserted, 
 steady near 56 C). Kernel execution time is stable regardless (stddev 18 ns) and the
 end-to-end latency is host-bound, so the metric is insensitive to GPU clock.
 
+## The 2D frontier (batch x arrival rate)
+
+Batch 1 is one question; the frontier answers the other one: as the batch grows, one
+kernel over N rows amortizes the fixed launch + PCIe cost the CPU never pays, so at
+some batch the GPU should overtake the in-cache CPU. `frontier_all` sweeps batch in
+{1,2,4,8,16,32,64,128,256} against arrival rate in {unpaced, 1k, 10k, 50k, 100k, 250k}
+Hz, times all four backends per cell (20,000 iters, 1,000 warmup discarded), and gates
+each GPU backend against the CPU batched reference before timing. The winner of a cell
+is the lowest p99.9. This is one run, all four backends in one process, so it trades the
+batch-1 isolation above for a real 2D sweep; the numbers below are that run.
+
+Unpaced (rate 0) p99.9 latency in microseconds, per backend and batch:
+
+| Batch | CPU | cuda-naive | cuda-graphs | persistent |
+| --- | --- | --- | --- | --- |
+| 1   | 24.8   | 3318.8 | 3759.3 | 1293.5 |
+| 8   | 39.6   | 1381.4 | 1903.1 | 774.3  |
+| 32  | 272.2  | 1365.4 | 1065.4 | 3179.9 |
+| 64  | 443.0  | 1785.5 | 1286.7 | 5427.2 |
+| 128 | 641.7  | 1256.7 | 1714.4 | 7485.5 |
+| 256 | 1349.8 | 1017.0 | 1363.5 | 3000.0 |
+
+The winner map: the CPU holds every cell except the top-right corner. cuda-naive takes
+batch 256 unpaced (1017 vs the CPU's 1350 us) and batch 128 at 250k Hz, and wins several
+of the batch-256 paced cells. In p50 the crossover is the same shape: the CPU's median
+scales with batch (1.0 us at batch 1 to 96.7 us at batch 256) because a CPU "batch" is N
+sequential forwards, while cuda-naive stays nearly flat (52.1 to 87.3 us) as the launch
+cost spreads over the batch. They cross near batch 256.
+
+The honest reading: on this WDDM laptop GPU with display contention, the in-cache CPU
+wins the whole low-to-moderate-batch regime and the GPU only overtakes at large batch.
+The crossover exists but sits far to the right; a dedicated GPU without the 2s watchdog
+and without a display sharing the device would move it left. That is the same limitation
+the batch-1 table shows, measured across two axes instead of one.
+
+Persistent is the best GPU backend at batch 1 (p50 5.5 us) but degrades as the batch
+grows: its single resident block processes the batch one row at a time, each with a
+system-wide fence and a host handshake, so it is a batch-1 streaming tool, not a
+throughput-batch tool. It also runs unpaced only: a host-paced resident kernel stays on
+the GPU for iters/rate seconds and the 2s TDR watchdog resets it, so paced persistent is
+not measurable here. Its window is capped to a row budget (hence fewer samples at large
+batch, shown in the CSV `count` column).
+
+Artifacts: `results/frontier.csv` (every cell) and `results/frontier_winner.png` (the
+heatmap), with one p99.9 map per backend beside it.
+
 ## Reproduce
 
 ```bash
 # GPU backends need nvcc + the MSVC host env (vcvars64.bat), -arch=sm_89 for Ada.
+# Batch-1 table (all four backends, one process):
 nvcc -O2 -arch=sm_89 -std=c++17 -Iinclude \
-  src/bench_all.cpp src/gpu_model.cu src/graph_model.cu src/persistent_model.cu \
-  src/gpu_weights.cu src/parser.cpp src/features.cpp src/model.cpp src/latency.cpp \
-  -o build/bench_all.exe
+  src/bench/bench_all.cpp src/gpu/gpu_model.cu src/gpu/graph_model.cu \
+  src/gpu/persistent_model.cu src/gpu/gpu_weights.cu src/io/parser.cpp \
+  src/io/features.cpp src/cpu/model.cpp src/cpu/latency.cpp -o build/bench_all.exe
 ./build/bench_all.exe data/BTCUSDT-aggTrades-2026-06-27.csv data/model 1000 200000
+
+# 2D frontier (batch x arrival rate, all four backends):
+nvcc -O2 -arch=sm_89 -std=c++17 -Iinclude \
+  src/bench/frontier_all.cpp src/bench/frontier.cpp src/gpu/gpu_model.cu \
+  src/gpu/graph_model.cu src/gpu/gpu_weights.cu src/gpu/persistent_model.cu \
+  src/io/parser.cpp src/io/features.cpp src/cpu/model.cpp src/cpu/latency.cpp \
+  -o build/frontier_all.exe
+./build/frontier_all.exe data/BTCUSDT-aggTrades-2026-06-27.csv data/model results/frontier.csv 20000
+python python/plot_frontier.py results/frontier.csv
 
 # Nsight profile of the naive path:
 nsys profile --trace=cuda --stats=true -o prof_naive \
