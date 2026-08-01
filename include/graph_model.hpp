@@ -1,6 +1,7 @@
 #ifndef GRAPH_MODEL_HPP
 #define GRAPH_MODEL_HPP
 
+#include <cstddef>
 #include <vector>
 
 #include "gpu_weights.hpp"
@@ -27,10 +28,9 @@ public:
     // Overwrite the staged input, replay the graph, return the logit.
     float forward(const std::vector<float>& in);
 
-    // Batched forward: n rows in, n logits out. Must match Model::forward_batch.
-    // See batch.hpp. TODO: implement in graph_model.cu. A captured graph binds a
-    // fixed batch size, so batches larger than the captured one need one graph per
-    // batch size, keyed by n, or a re-capture when n changes.
+    // Batched forward: n rows in, n logits out. Must match Model::forward_batch. A
+    // captured graph binds a fixed batch size, so a new n triggers a re-capture; the
+    // frontier sweeps one batch per outer loop, so that cost amortizes over the run.
     void forward_batch(const std::vector<float>& in, std::size_t n,
                        std::vector<float>& out);
 
@@ -39,6 +39,7 @@ public:
 
 private:
     void release() noexcept;
+    void capture_graph(std::size_t batch); // (re)capture the graph for a batch size
 
     GpuWeights w_;             // resident weights, shared upload path
     float* d_in_ = nullptr;    // device input, copied into by the graph
@@ -49,6 +50,7 @@ private:
     void* stream_ = nullptr;   // cudaStream_t used for capture and replay
     void* graph_ = nullptr;    // cudaGraph_t, the recorded sequence
     void* exec_ = nullptr;     // cudaGraphExec_t, the instantiated replayable graph
+    std::size_t cap_batch_ = 0; // batch size the current graph is captured for
 };
 
 #endif
