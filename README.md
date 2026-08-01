@@ -110,5 +110,19 @@ python python/plot_frontier.py data/frontier.csv
 ```
 
 `frontier_all` (nvcc) is the real thing: all four backends per cell, each gated on
-matching the CPU. It needs each GPU backend's `forward_batch` implemented first (the
-`.cu` TODOs), then builds like the other nvcc drivers plus `src/bench/frontier.cpp`.
+matching the CPU batched reference, then timed.
+
+```bash
+nvcc $FLAGS src/bench/frontier_all.cpp src/bench/frontier.cpp src/gpu/gpu_model.cu \
+  src/gpu/graph_model.cu src/gpu/gpu_weights.cu src/gpu/persistent_model.cu \
+  $COMMON -o build/frontier_all.exe
+./build/frontier_all.exe data/BTCUSDT-aggTrades-2026-06-27.csv data/model results/frontier.csv 20000
+python python/plot_frontier.py results/frontier.csv
+```
+
+Result (see `BENCHMARKS.md` and `results/frontier_winner.png`): the in-cache CPU wins
+p999 across the whole grid except the top-right corner, where cuda-naive overtakes at
+batch 128-256 as its launch cost amortizes over the batch. The crossover is real but
+sits far right on this WDDM laptop GPU; a dedicated GPU without the watchdog and display
+contention would move it left. Persistent is the best GPU path at batch 1 but degrades
+with batch (one resident block, one row at a time), so it runs unpaced only.
