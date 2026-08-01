@@ -11,7 +11,7 @@
 
 namespace {
 
-constexpr int CAPACITY = 256;  // ring slots, power of two
+constexpr int CAPACITY = 512;  // ring slots, power of two; > max frontier batch (256)
 constexpr int HEAD = 0;        // ctrl[HEAD]: host writes, device reads
 constexpr int TAIL = 1;        // ctrl[TAIL]: device writes, host reads
 constexpr int STOP = 2;        // ctrl[STOP]: host writes, device reads
@@ -135,6 +135,45 @@ float PersistentModel::forward(const std::vector<float>& in) {
     while (ctrl[TAIL] != h + 1) { /* spin until the kernel finishes this one */ }
     std::atomic_thread_fence(std::memory_order_acquire); // read output after tail seen
     return h_out_ring_[slot * w_.output_dim];
+}
+
+void PersistentModel::forward_batch(const std::vector<float>& in, std::size_t n,
+                                    std::vector<float>& out) {
+    if (in.size() != n * static_cast<std::size_t>(w_.input_dim)) {
+        throw std::runtime_error("forward_batch: input size != n * input_dim");
+    }
+    out.resize(n * static_cast<std::size_t>(w_.output_dim));
+    volatile unsigned* ctrl = h_ctrl_;
+    const int mask = CAPACITY - 1;
+
+    // Stream the batch through the ring in chunks no larger than the ring. The resident
+    // kernel drains one slot per iteration and advances the tail, so publishing a chunk
+    // of head positions at once lets it chew through them back to back with no launch.
+    std::size_t done = 0;
+    while (done < n) {
+        const std::size_t chunk = std::min(n - done, static_cast<std::size_t>(CAPACITY));
+        const unsigned base = next_head_;
+
+        for (std::size_t j = 0; j < chunk; ++j) {
+            const int slot = static_cast<int>(base + j) & mask;
+            float* dst = h_in_ring_ + static_cast<std::size_t>(slot) * w_.input_dim;
+            const float* src = &in[(done + j) * static_cast<std::size_t>(w_.input_dim)];
+            for (int i = 0; i < w_.input_dim; ++i) dst[i] = src[i];
+        }
+        std::atomic_thread_fence(std::memory_order_release); // inputs written before head moves
+        ctrl[HEAD] = base + static_cast<unsigned>(chunk);
+        next_head_ = base + static_cast<unsigned>(chunk);
+
+        while (ctrl[TAIL] != base + static_cast<unsigned>(chunk)) { /* wait for the chunk */ }
+        std::atomic_thread_fence(std::memory_order_acquire); // read outputs after tail seen
+
+        for (std::size_t j = 0; j < chunk; ++j) {
+            const int slot = static_cast<int>(base + j) & mask;
+            out[(done + j) * static_cast<std::size_t>(w_.output_dim)] =
+                h_out_ring_[static_cast<std::size_t>(slot) * w_.output_dim];
+        }
+        done += chunk;
+    }
 }
 
 void PersistentModel::release() noexcept {
