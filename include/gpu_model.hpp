@@ -5,6 +5,7 @@
 
 #include "gpu_weights.hpp"
 #include "model.hpp"
+#include "stage_timing.hpp"
 
 // GPU forward pass for the tiny MLP, naive request-response style: per call it copies
 // the input up, launches one forward kernel, copies the logit down. Weights are
@@ -34,6 +35,13 @@ public:
     // n logits. Grows d_in_/d_out_ to hold the batch. Matches Model::forward_batch.
     void forward_batch(const std::vector<float>& in, std::size_t n,
                        std::vector<float>& out);
+
+    // Single forward that fills `out` with this call's H2D/launch/compute/D2H
+    // durations in nanoseconds. Uses four cudaEvent pairs around the copies and the
+    // kernel, cudaEventElapsedTime between them. The launch stage is the host time
+    // from issuing the kernel to it starting, measured host-side. TODO: implement in
+    // gpu_model.cu. This is the jitter-autopsy instrumentation, see stage_timing.hpp.
+    float forward_timed(const std::vector<float>& in, StageSample& out);
 
     int input_dim() const { return w_.input_dim; }
     int output_dim() const { return w_.output_dim; }
