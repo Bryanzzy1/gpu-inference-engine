@@ -126,3 +126,20 @@ batch 128-256 as its launch cost amortizes over the batch. The crossover is real
 sits far right on this WDDM laptop GPU; a dedicated GPU without the watchdog and display
 contention would move it left. Persistent is the best GPU path at batch 1 but degrades
 with batch (one resident block, one row at a time), so it runs unpaced only.
+
+## The jitter autopsy
+
+The frontier shows the GPU loses at batch 1; the autopsy shows why, stage by stage.
+`autopsy` times the naive path per call with CUDA events around each stage (H2D copy,
+launch, compute, D2H copy) and reports a per-stage tail, so the single latency number
+becomes a decomposition. Run it with GPU clocks locked and unlocked
+(`nvidia-smi --lock-gpu-clocks`) to separate clock-ramp jitter from real variance.
+
+```bash
+nvcc $FLAGS src/bench/autopsy.cpp src/gpu/gpu_model.cu src/cpu/stage_timing.cpp $COMMON -o build/autopsy.exe
+./build/autopsy.exe data/BTCUSDT-aggTrades-2026-06-27.csv data/model results/autopsy.csv naive
+python python/plot_autopsy.py results/autopsy.csv
+```
+
+The host-side stage math is covered by the `test_stage_timing` CMake target, which
+needs no GPU.
