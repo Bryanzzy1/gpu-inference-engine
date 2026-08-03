@@ -20,3 +20,6 @@ jobs:
 
       - name: Ring self-check
         run: ./build/test_ring
+
+      - name: Stage-timing self-check
+        run: ./build/test_stage_timing
