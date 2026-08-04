@@ -23,3 +23,6 @@ jobs:
 
       - name: Stage-timing self-check
         run: ./build/test_stage_timing
+
+      - name: Router self-check
+        run: ./build/test_router
