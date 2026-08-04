@@ -49,6 +49,47 @@ def main(path):
         fig.savefig(out, dpi=120)
         print(f"wrote {out}")
 
+    labels = list(df["label"].unique())
+    parts = [s for s in STAGES if s != "total"]  # stack the four stages, not the total
+
+    # Stacked breakdown at p999: shows how each stage adds up to the tail per label,
+    # so the stage that owns the tail is obvious at a glance.
+    fig, ax = plt.subplots(figsize=(1.8 * len(labels) + 3, 5))
+    bottom = np.zeros(len(labels))
+    for stage in parts:
+        vals = [float(df[(df["label"] == lb) & (df["stage"] == stage)]["p999_us"].iloc[0])
+                if not df[(df["label"] == lb) & (df["stage"] == stage)].empty else 0.0
+                for lb in labels]
+        ax.bar(labels, vals, bottom=bottom, label=stage)
+        bottom += np.array(vals)
+    ax.set_ylabel("p999 latency (us)")
+    ax.set_title("Stage breakdown at p999 (stacked)")
+    ax.legend()
+    fig.tight_layout()
+    out = out_dir / "autopsy_stacked_p999.png"
+    fig.savefig(out, dpi=120)
+    print(f"wrote {out}")
+
+    # Locked vs unlocked overlay: only meaningful with more than one label. Grouped
+    # bars per stage make the clock-ramp jitter (tail that shrinks when locked) visible.
+    if len(labels) > 1:
+        x = np.arange(len(parts))
+        w = 0.8 / len(labels)
+        fig, ax = plt.subplots(figsize=(10, 5))
+        for i, lb in enumerate(labels):
+            vals = [float(df[(df["label"] == lb) & (df["stage"] == s)]["p999_us"].iloc[0])
+                    if not df[(df["label"] == lb) & (df["stage"] == s)].empty else 0.0
+                    for s in parts]
+            ax.bar(x + (i - (len(labels) - 1) / 2) * w, vals, w, label=lb)
+        ax.set_xticks(x, parts)
+        ax.set_ylabel("p999 latency (us)")
+        ax.set_title("Per-stage p999 across runs (e.g. clocks locked vs unlocked)")
+        ax.legend()
+        fig.tight_layout()
+        out = out_dir / "autopsy_overlay_p999.png"
+        fig.savefig(out, dpi=120)
+        print(f"wrote {out}")
+
 
 if __name__ == "__main__":
     if len(sys.argv) != 2:
