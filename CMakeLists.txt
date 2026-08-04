@@ -58,3 +58,7 @@ target_link_libraries(test_ring PRIVATE Threads::Threads)
 # Stage-timing host code self-check (the jitter-autopsy math, no GPU).
 add_executable(test_stage_timing src/tools/test_stage_timing.cpp src/cpu/stage_timing.cpp src/cpu/latency.cpp)
 target_compile_features(test_stage_timing PRIVATE cxx_std_17)
+
+# Static router self-check (frontier CSV lookup, no GPU).
+add_executable(test_router src/tools/test_router.cpp src/cpu/router.cpp)
+target_compile_features(test_router PRIVATE cxx_std_17)
