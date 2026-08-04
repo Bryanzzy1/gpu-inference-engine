@@ -143,3 +143,18 @@ python python/plot_autopsy.py results/autopsy.csv
 
 The host-side stage math is covered by the `test_stage_timing` CMake target, which
 needs no GPU.
+
+## Static routing
+
+The frontier is a map of which backend wins each cell; `Router` turns it into a
+decision. It loads the frontier CSV and, for a given (batch, arrival rate), returns the
+backend with the lowest p999 at the nearest cell. This is the lookup-table half of
+"switch to whatever wins"; the closed-loop SLA controller that adapts under live load
+builds on the same table and comes next.
+
+Pure host code, no GPU: `include/router.hpp`, `src/cpu/router.cpp`, checked by the
+`test_router` CMake target (also in CI).
+
+```bash
+cmake --build build --target test_router && ./build/test_router
+```
