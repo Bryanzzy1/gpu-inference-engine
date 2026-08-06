@@ -9,6 +9,8 @@ tick looks like before writing the C++ parser (Day 2).
 """
 
 import sys
+from pathlib import Path
+
 import pandas as pd
 
 COLUMNS = [
@@ -30,6 +32,8 @@ def detect_time_unit(ts: int) -> str:
 
 
 def main(path: str) -> None:
+    if not Path(path).exists():
+        sys.exit(f"error: no such file: {path}\nrun download_data.py first to fetch it")
     df = pd.read_csv(path, header=None, names=COLUMNS)
 
     print(f"File: {path}")
