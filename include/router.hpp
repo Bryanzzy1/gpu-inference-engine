@@ -35,6 +35,10 @@ public:
     std::size_t size() const { return points_.size(); }
 
 private:
+    // Winning point at the cell nearest (batch, rate_hz), or nullptr if empty. Shared
+    // by route() and best_p999_ns() so the selection rule lives in one place.
+    const FrontierPoint* best_point(std::size_t batch, double rate_hz) const;
+
     std::vector<FrontierPoint> points_;
 };
 
