@@ -24,6 +24,8 @@ STAGES = ["h2d", "launch", "compute", "d2h", "total"]
 
 
 def main(path):
+    if not Path(path).exists():
+        sys.exit(f"error: no such file: {path}\nrun autopsy first to produce it")
     df = pd.read_csv(path)
     df["p50_us"] = df["p50_ns"] / 1000.0
     df["p99_us"] = df["p99_ns"] / 1000.0
