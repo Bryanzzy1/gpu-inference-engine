@@ -28,6 +28,8 @@ def pivot(df, backend, value):
 
 
 def main(path):
+    if not Path(path).exists():
+        sys.exit(f"error: no such file: {path}\nrun frontier_all/frontier_cpu first to produce it")
     df = pd.read_csv(path)
     df["p999_us"] = df["p999_ns"] / 1000.0
     backends = sorted(df["backend"].unique())
