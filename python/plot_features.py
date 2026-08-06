@@ -15,6 +15,8 @@ import pandas as pd
 
 
 def main(path: str) -> None:
+    if not Path(path).exists():
+        sys.exit(f"error: no such file: {path}\nrun build_features first to produce it")
     df = pd.read_csv(path)
 
     # Seconds from the start, for readable x-axes.
