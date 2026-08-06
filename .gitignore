@@ -30,6 +30,9 @@ venv/
 Thumbs.db
 .lavish/
 
+# Scratch file test_router writes then deletes; ignore in case a run is interrupted.
+test_frontier.csv
+
 # Private learning notes — kept in the private claude-history repo, not here
 docs/LEARNING.md
 LEARNING.md
