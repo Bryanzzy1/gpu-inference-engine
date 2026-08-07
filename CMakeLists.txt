@@ -62,3 +62,7 @@ target_compile_features(test_stage_timing PRIVATE cxx_std_17)
 # Static router self-check (frontier CSV lookup, no GPU).
 add_executable(test_router src/tools/test_router.cpp src/cpu/router.cpp)
 target_compile_features(test_router PRIVATE cxx_std_17)
+
+# Closed-loop SLA controller self-check (simulated latency, no GPU).
+add_executable(test_controller src/tools/test_controller.cpp src/cpu/controller.cpp src/cpu/router.cpp)
+target_compile_features(test_controller PRIVATE cxx_std_17)
