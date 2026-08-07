@@ -158,3 +158,19 @@ Pure host code, no GPU: `include/router.hpp`, `src/cpu/router.cpp`, checked by t
 ```bash
 cmake --build build --target test_router && ./build/test_router
 ```
+
+## The SLA controller
+
+The capstone: hold a p99 latency target under changing load by choosing batch size and
+backend each control tick. It reads the live p99 of the last window and steps along the
+batch ladder, backing off when over the SLA, growing when it has headroom, with a
+headroom margin as hysteresis so it does not oscillate. It uses the `Router` (hence the
+frontier) to pick the winning backend at whatever batch it lands on.
+
+Pure host decision logic, no GPU: `include/controller.hpp`, `src/cpu/controller.cpp`.
+`test_controller` simulates latency responding to batch size and asserts the loop holds
+the target (also in CI).
+
+```bash
+cmake --build build --target test_controller && ./build/test_controller
+```
