@@ -26,3 +26,6 @@ jobs:
 
       - name: Router self-check
         run: ./build/test_router
+
+      - name: Controller self-check
+        run: ./build/test_controller
