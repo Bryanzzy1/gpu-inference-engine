@@ -149,8 +149,8 @@ needs no GPU.
 The frontier is a map of which backend wins each cell; `Router` turns it into a
 decision. It loads the frontier CSV and, for a given (batch, arrival rate), returns the
 backend with the lowest p999 at the nearest cell. This is the lookup-table half of
-"switch to whatever wins"; the closed-loop SLA controller that adapts under live load
-builds on the same table and comes next.
+"switch to whatever wins"; the closed-loop SLA controller below adapts under live load
+on top of the same table.
 
 Pure host code, no GPU: `include/router.hpp`, `src/cpu/router.cpp`, checked by the
 `test_router` CMake target (also in CI).
