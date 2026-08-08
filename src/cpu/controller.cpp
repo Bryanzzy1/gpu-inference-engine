@@ -27,10 +27,15 @@ Decision Controller::step(double observed_p99_ns, double rate_hz) {
         // Over the SLA: back off one rung to cut per-inference latency.
         if (r > 0) --r;
     } else if (observed_p99_ns < cfg_.headroom * cfg_.sla_p99_ns) {
-        // Comfortably under with headroom to spare: grow one rung to absorb load.
-        // The headroom margin is the hysteresis: we only grow when clearly safe, so
-        // the loop does not flip up and down at the boundary.
-        if (r < last) ++r;
+        // Comfortably under with headroom to spare: grow one rung to absorb load, but only
+        // if the frontier models the next rung as feasible. Without this check the loop
+        // climbs into a batch where no backend can hold the SLA, then oscillates back off
+        // it every tick. The frontier p99 is the controller's model of the ceiling; a 0
+        // means no data, so fall back to growing.
+        if (r < last) {
+            const double next_p99 = router_.best_p99_ns(kFrontierBatches[r + 1], rate_hz);
+            if (next_p99 <= 0.0 || next_p99 <= cfg_.sla_p99_ns) ++r;
+        }
     }
 
     std::size_t next = kFrontierBatches[r];
