@@ -193,3 +193,36 @@ the target (also in CI).
 ```bash
 cmake --build build --target test_controller && ./build/test_controller
 ```
+
+### Closing the loop on real backends
+
+`controller_live` drives that same controller with **measured** p99 instead of a
+simulation: each tick it runs the current (backend, batch) for a window of real
+inferences on the GPU, feeds the actual p99 back, and applies the batch and backend the
+controller returns.
+
+```bash
+nvcc $FLAGS src/bench/controller_live.cpp src/gpu/gpu_model.cu src/gpu/graph_model.cu \
+  src/gpu/persistent_model.cu $COMMON src/cpu/controller.cpp src/cpu/router.cpp \
+  -o build/controller_live.exe
+./build/controller_live.exe data/BTCUSDT-aggTrades-2026-06-27.csv data/model \
+  results/frontier.csv results/controller_trace.csv 150 3000
+python python/plot_controller.py results/controller_trace.csv
+```
+
+This surfaced two bugs the open-loop map hid, and both are now fixed:
+
+1. **Route on the metric you hold.** The first run (150 us p99 SLA) kept the SLA on only
+   17 of 20 ticks. The misses: at high rate and batch 128 the Router picked `cuda-naive`
+   because it wins **p999** at that cell, but its **p99** is over the SLA. p999 and p99 are
+   different order statistics and rank backends differently. Fix: `Router::set_metric(P99)`
+   so a p99 SLA routes on p99 (`results/controller_trace_p999.csv` is that buggy run).
+2. **Do not grow past the feasible batch.** Routing on p99 fixed the backend choice but
+   exposed the real limiter: the controller's headroom growth climbed to batch 256, where
+   no backend meets a 150 us p99, then oscillated. Fix: the controller consults the
+   frontier and only grows to the next rung if that rung's modeled p99 is under the SLA.
+
+With both fixes the loop climbs batch 1 to 128 on the CPU and holds there (p99 96-138 us),
+keeping the 150 us SLA on **20 of 20 ticks**. Trace and plot in
+`results/controller_trace.csv` and `.png`. The lesson is the method: a closed loop on real
+p99 caught what the static map and the simulated test both missed.
