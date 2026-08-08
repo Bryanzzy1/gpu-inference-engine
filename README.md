@@ -141,8 +141,27 @@ nvcc $FLAGS src/bench/autopsy.cpp src/gpu/gpu_model.cu src/cpu/stage_timing.cpp 
 python python/plot_autopsy.py results/autopsy.csv
 ```
 
+Measured on the RTX 4060 (WDDM, unlocked clocks, 100k calls), per-stage latency in us:
+
+| Stage | p50 | p99 | p999 |
+| --- | --- | --- | --- |
+| h2d | 9.9 | 131.7 | 250.9 |
+| launch | 20.5 | 90.0 | 234.9 |
+| compute | 40.5 | 140.6 | 337.0 |
+| d2h | 32.6 | 138.1 | 306.6 |
+
+No single stage owns the tail: h2d, launch, compute, and d2h all blow out to hundreds
+of microseconds at p999, which is the signature of WDDM scheduling jitter rather than one
+slow operation. Note the instrumented total (p50 ~118 us) runs higher than the naive
+path's 64 us in `BENCHMARKS.md`: the four event records, the dedicated stream, and the
+per-call sync add observer cost, and `compute` here includes the WDDM queue gap before
+the kernel starts, not just the ~3 us kernel. The autopsy is for relative stage weight
+and jitter, not the absolute number. Locking the clocks
+(`nvidia-smi --lock-gpu-clocks`, needs an elevated shell) would separate clock-ramp
+jitter from the rest; that run is left for a session with admin rights.
+
 The host-side stage math is covered by the `test_stage_timing` CMake target, which
-needs no GPU.
+needs no GPU. Artifacts: `results/autopsy_unlocked.csv` and `results/autopsy_unlocked.png`.
 
 ## Static routing
 
