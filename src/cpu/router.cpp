@@ -36,6 +36,7 @@ Router Router::load(const std::string& csv_path) {
         p.backend = c[0];
         p.batch = std::strtoull(c[1].c_str(), nullptr, 10);
         p.rate_hz = std::atof(c[2].c_str());
+        p.p99_ns = std::atof(c[5].c_str());
         p.p999_ns = std::atof(c[6].c_str());
         r.points_.push_back(p);
     }
@@ -48,6 +49,9 @@ const FrontierPoint* Router::best_point(std::size_t batch, double rate_hz) const
     // always beats a nearer-rate cell at the wrong batch. Among the nearest cell(s),
     // the lowest p999 wins.
     const double kBatchWeight = 1e12;
+    const auto metric = [this](const FrontierPoint& p) {
+        return metric_ == Metric::P99 ? p.p99_ns : p.p999_ns;
+    };
     const FrontierPoint* best = nullptr;
     double best_dist = 0.0;
     for (const FrontierPoint& p : points_) {
@@ -56,7 +60,7 @@ const FrontierPoint* Router::best_point(std::size_t batch, double rate_hz) const
                                : kBatchWeight * std::fabs(static_cast<double>(p.batch) -
                                                           static_cast<double>(batch));
         const double dist = batch_pen + std::fabs(p.rate_hz - rate_hz);
-        if (!best || dist < best_dist || (dist == best_dist && p.p999_ns < best->p999_ns)) {
+        if (!best || dist < best_dist || (dist == best_dist && metric(p) < metric(*best))) {
             best = &p;
             best_dist = dist;
         }
@@ -72,4 +76,9 @@ std::string Router::route(std::size_t batch, double rate_hz) const {
 double Router::best_p999_ns(std::size_t batch, double rate_hz) const {
     const FrontierPoint* p = best_point(batch, rate_hz);
     return p ? p->p999_ns : 0.0;
+}
+
+double Router::best_p99_ns(std::size_t batch, double rate_hz) const {
+    const FrontierPoint* p = best_point(batch, rate_hz);
+    return p ? p->p99_ns : 0.0;
 }
