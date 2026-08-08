@@ -3,6 +3,7 @@
 #include <cuda_runtime.h>
 
 #include <algorithm>
+#include <chrono>
 #include <stdexcept>
 #include <string>
 
@@ -103,11 +104,77 @@ void GpuModel::forward_batch(const std::vector<float>& in, std::size_t n,
                cudaMemcpyDeviceToHost);
 }
 
+void GpuModel::init_timing() {
+    if (tstream_) return;
+    cudaStream_t s = nullptr;
+    cuda_check(cudaStreamCreate(&s), "timing stream");
+    tstream_ = s;
+    for (int i = 0; i < 4; ++i) {
+        cudaEvent_t e = nullptr;
+        cuda_check(cudaEventCreate(&e), "timing event");
+        ev_[i] = e;
+    }
+    cuda_check(cudaHostAlloc(&th_in_, static_cast<std::size_t>(w_.input_dim) * sizeof(float),
+                             cudaHostAllocDefault), "pin in");
+    cuda_check(cudaHostAlloc(&th_out_, static_cast<std::size_t>(w_.output_dim) * sizeof(float),
+                             cudaHostAllocDefault), "pin out");
+}
+
+float GpuModel::forward_timed(const std::vector<float>& in, StageSample& out) {
+    init_timing();
+    cudaStream_t s = static_cast<cudaStream_t>(tstream_);
+    cudaEvent_t e0 = static_cast<cudaEvent_t>(ev_[0]);
+    cudaEvent_t e1 = static_cast<cudaEvent_t>(ev_[1]);
+    cudaEvent_t e2 = static_cast<cudaEvent_t>(ev_[2]);
+    cudaEvent_t e3 = static_cast<cudaEvent_t>(ev_[3]);
+
+    for (int i = 0; i < w_.input_dim; ++i) th_in_[i] = in[i];
+
+    // Device timeline: bracket H2D, kernel, D2H with events on one stream.
+    cudaEventRecord(e0, s);
+    cudaMemcpyAsync(d_in_, th_in_, static_cast<std::size_t>(w_.input_dim) * sizeof(float),
+                    cudaMemcpyHostToDevice, s);
+    cudaEventRecord(e1, s);
+
+    const int threads = w_.max_dim;
+    const std::size_t shmem = 2u * static_cast<std::size_t>(threads) * sizeof(float);
+    // Host-side launch issue cost: the CPU time to enqueue the kernel.
+    const auto t0 = std::chrono::steady_clock::now();
+    forward_kernel<<<1, threads, shmem, s>>>(
+        w_.mean, w_.stdv, w_.weights, w_.biases,
+        w_.layers, w_.num_layers, w_.input_dim, d_in_, d_out_);
+    const auto t1 = std::chrono::steady_clock::now();
+
+    cudaEventRecord(e2, s);
+    cudaMemcpyAsync(th_out_, d_out_, static_cast<std::size_t>(w_.output_dim) * sizeof(float),
+                    cudaMemcpyDeviceToHost, s);
+    cudaEventRecord(e3, s);
+    cudaEventSynchronize(e3); // wait for the whole chain, then read the device times
+
+    float h2d_ms = 0.0f, comp_ms = 0.0f, d2h_ms = 0.0f;
+    cudaEventElapsedTime(&h2d_ms, e0, e1);
+    cudaEventElapsedTime(&comp_ms, e1, e2);
+    cudaEventElapsedTime(&d2h_ms, e2, e3);
+
+    out.ns[static_cast<int>(Stage::H2D)] = static_cast<double>(h2d_ms) * 1e6;
+    out.ns[static_cast<int>(Stage::Launch)] =
+        std::chrono::duration<double, std::nano>(t1 - t0).count();
+    out.ns[static_cast<int>(Stage::Compute)] = static_cast<double>(comp_ms) * 1e6;
+    out.ns[static_cast<int>(Stage::D2H)] = static_cast<double>(d2h_ms) * 1e6;
+    return th_out_[0];
+}
+
 void GpuModel::release() noexcept {
     w_.free();
     cudaFree(d_in_);
     cudaFree(d_out_);
     d_in_ = d_out_ = nullptr;
+    for (int i = 0; i < 4; ++i) {
+        if (ev_[i]) { cudaEventDestroy(static_cast<cudaEvent_t>(ev_[i])); ev_[i] = nullptr; }
+    }
+    if (th_in_) { cudaFreeHost(th_in_); th_in_ = nullptr; }
+    if (th_out_) { cudaFreeHost(th_out_); th_out_ = nullptr; }
+    if (tstream_) { cudaStreamDestroy(static_cast<cudaStream_t>(tstream_)); tstream_ = nullptr; }
 }
 
 GpuModel::~GpuModel() { release(); }

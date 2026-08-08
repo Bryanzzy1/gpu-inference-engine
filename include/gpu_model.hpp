@@ -37,10 +37,10 @@ public:
                        std::vector<float>& out);
 
     // Single forward that fills `out` with this call's H2D/launch/compute/D2H
-    // durations in nanoseconds. Uses four cudaEvent pairs around the copies and the
-    // kernel, cudaEventElapsedTime between them. The launch stage is the host time
-    // from issuing the kernel to it starting, measured host-side. TODO: implement in
-    // gpu_model.cu. This is the jitter-autopsy instrumentation, see stage_timing.hpp.
+    // durations in nanoseconds. cudaEvents on a dedicated stream bracket the H2D copy,
+    // the kernel (compute), and the D2H copy; the launch stage is the host time to issue
+    // the kernel, measured with steady_clock. This is the jitter-autopsy instrumentation,
+    // see stage_timing.hpp.
     float forward_timed(const std::vector<float>& in, StageSample& out);
 
     int input_dim() const { return w_.input_dim; }
@@ -49,11 +49,18 @@ public:
 private:
     void release() noexcept;
     void ensure_capacity(std::size_t n); // grow d_in_/d_out_ to hold n rows
+    void init_timing();          // lazily create the stream/events/pinned staging
 
     GpuWeights w_;               // resident weights, shared upload path
     float* d_in_ = nullptr;      // per-call input buffer, sized for the max batch
     float* d_out_ = nullptr;     // per-call output buffer, sized for the max batch
     std::size_t cap_ = 0;        // rows the current buffers can hold
+
+    // forward_timed resources (opaque so the header stays CUDA-free), created on first use.
+    void* tstream_ = nullptr;    // cudaStream_t the timed forward runs on
+    void* ev_[4] = {nullptr, nullptr, nullptr, nullptr}; // cudaEvent_t stage brackets
+    float* th_in_ = nullptr;     // pinned staging input for clean event timing
+    float* th_out_ = nullptr;    // pinned staging output
 };
 
 #endif
