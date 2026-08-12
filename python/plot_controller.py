@@ -19,6 +19,8 @@ import pandas as pd
 
 
 def main(path):
+    if not Path(path).exists():
+        sys.exit(f"error: no such file: {path}\nrun controller_live first to produce it")
     df = pd.read_csv(path)
     df["p99_us"] = df["observed_p99_ns"] / 1000.0
     sla_us = df["sla_ns"].iloc[0] / 1000.0
