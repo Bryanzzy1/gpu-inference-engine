@@ -174,4 +174,22 @@ python python/plot_frontier.py results/frontier.csv
 # Nsight profile of the naive path:
 nsys profile --trace=cuda --stats=true -o prof_naive \
   ./build/bench_gpu.exe data/BTCUSDT-aggTrades-2026-06-27.csv data/model 200 3000
+
+# Jitter autopsy (per-stage tail):
+nvcc -O2 -arch=sm_89 -std=c++17 -Iinclude \
+  src/bench/autopsy.cpp src/gpu/gpu_model.cu src/cpu/stage_timing.cpp \
+  src/io/parser.cpp src/io/features.cpp src/cpu/model.cpp src/cpu/latency.cpp \
+  -o build/autopsy.exe
+./build/autopsy.exe data/BTCUSDT-aggTrades-2026-06-27.csv data/model results/autopsy.csv naive
+python python/plot_autopsy.py results/autopsy.csv
+
+# SLA controller closed loop on real p99 (150 us SLA, 3000-inference window):
+nvcc -O2 -arch=sm_89 -std=c++17 -Iinclude \
+  src/bench/controller_live.cpp src/gpu/gpu_model.cu src/gpu/graph_model.cu \
+  src/gpu/gpu_weights.cu src/gpu/persistent_model.cu src/cpu/controller.cpp \
+  src/cpu/router.cpp src/io/parser.cpp src/io/features.cpp src/cpu/model.cpp \
+  src/cpu/latency.cpp -o build/controller_live.exe
+./build/controller_live.exe data/BTCUSDT-aggTrades-2026-06-27.csv data/model \
+  results/frontier.csv results/controller_trace.csv 150 3000
+python python/plot_controller.py results/controller_trace.csv
 ```
