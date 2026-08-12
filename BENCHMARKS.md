@@ -121,6 +121,36 @@ batch, shown in the CSV `count` column).
 Artifacts: `results/frontier.csv` (every cell) and `results/frontier_winner.png` (the
 heatmap), with one p99.9 map per backend beside it.
 
+## Jitter autopsy (naive path, per-stage, 100k calls, WDDM, unlocked)
+
+Per-stage latency in microseconds, from `autopsy` (cudaEvents bracket H2D/compute/D2H,
+steady_clock brackets the host launch):
+
+| Stage | p50 | p99 | p999 |
+| --- | --- | --- | --- |
+| h2d | 9.9 | 131.7 | 250.9 |
+| launch | 20.5 | 90.0 | 234.9 |
+| compute | 40.5 | 140.6 | 337.0 |
+| d2h | 32.6 | 138.1 | 306.6 |
+| total | 117.9 | 465.8 | 831.9 |
+
+No single stage owns the tail: all four blow out to 235-337 us at p999 over 10-40 us
+medians, the signature of WDDM scheduling jitter rather than one slow operation. The
+instrumented total (~118 us p50) runs above the uninstrumented naive path (64 us) because
+the event records plus a per-call sync add observer cost, and `compute` includes the WDDM
+queue gap before the kernel runs, not just the ~3 us kernel. Use it for relative stage
+weight, not the absolute number. Locked-clock run is admin-gated and left for a session
+with an elevated shell. Artifacts: `results/autopsy_unlocked.csv` + `.png`.
+
+## SLA controller (closed loop on real p99)
+
+`controller_live` drives the closed-loop controller on measured p99 over a bursty arrival
+schedule. At a 150 us p99 SLA it holds the target on 20 of 20 ticks, after two fixes the
+live run exposed: route on p99 not p999 (`Router::set_metric(P99)`), and cap batch growth
+at the frontier-feasible rung. It climbs batch 1 -> 128 on the CPU and holds (p99 96-138 us).
+Before/after traces: `results/controller_trace_p999.csv` (17/20, pre-fix) and
+`results/controller_trace.csv` (20/20).
+
 ## Reproduce
 
 ```bash
