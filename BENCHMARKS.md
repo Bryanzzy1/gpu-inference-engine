@@ -1,8 +1,7 @@
 # Benchmarks
 
-Latency of one tick-to-prediction inference, batch size one, measured on the
-`bench_all` runner in a single process so every number below comes from one run.
-The goal is a number that is defensible in an interview, not a flattering one.
+Latency of one tick-to-prediction inference, batch size one, from the `bench_all`
+runner in a single process, so every number below comes from one run.
 
 ## Environment
 
