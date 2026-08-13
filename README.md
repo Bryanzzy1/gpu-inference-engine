@@ -39,11 +39,3 @@ GPU backends build with `nvcc -arch=sm_89` (load `vcvars64.bat` first on Windows
 All build + run commands: [BENCHMARKS.md](BENCHMARKS.md#reproduce). Layout: `src/io`
 (parse, features), `src/cpu` (model, harness, router, controller), `src/gpu` (CUDA
 backends), `src/bench` (drivers), `python` (train, plot).
-
-## Notes
-
-- **WDDM watchdog:** the persistent kernel busy-spins, so Windows' 2s TDR watchdog
-  resets a long run. Production wants Linux or TCC mode.
-- **Batch axis is GPU-only:** on the CPU a batch of N is just N sequential calls, so
-  `frontier_cpu` is a control that verifies the sweep, not a result.
-- **Data:** one day of Binance spot aggTrades (BTCUSDT), trade prints only, no book.
