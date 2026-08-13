@@ -11,7 +11,7 @@ The headline artifact is a **2D frontier** over (batch size x arrival rate) show
 which backend wins p999 in each cell. The model is a fixed workload for comparing
 backends, not a trading signal.
 
-## Backends and result (RTX 4060, measured)
+## Backends and result (RTX 4060)
 
 One `InferenceEngine` interface, timed on identical input.
 
