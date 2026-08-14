@@ -49,6 +49,10 @@ target_compile_features(bench_model PRIVATE cxx_std_17)
 add_executable(frontier_cpu src/bench/frontier_cpu.cpp src/bench/frontier.cpp src/cpu/model.cpp src/io/parser.cpp src/io/features.cpp src/cpu/latency.cpp)
 target_compile_features(frontier_cpu PRIVATE cxx_std_17)
 
+# Latency-distribution benchmark: extended tail stats + a log-spaced histogram CSV.
+add_executable(bench_hist src/bench/bench_hist.cpp src/cpu/model.cpp src/io/parser.cpp src/io/features.cpp src/cpu/latency.cpp)
+target_compile_features(bench_hist PRIVATE cxx_std_17)
+
 # SPSC lock-free ring self-check (one producer thread, one consumer thread).
 add_executable(test_ring src/tools/test_ring.cpp)
 target_compile_features(test_ring PRIVATE cxx_std_17)
@@ -58,6 +62,10 @@ target_link_libraries(test_ring PRIVATE Threads::Threads)
 # Stage-timing host code self-check (the jitter-autopsy math, no GPU).
 add_executable(test_stage_timing src/tools/test_stage_timing.cpp src/cpu/stage_timing.cpp src/cpu/latency.cpp)
 target_compile_features(test_stage_timing PRIVATE cxx_std_17)
+
+# Latency stats + histogram self-check (no GPU, no timing).
+add_executable(test_latency_stats src/tools/test_latency_stats.cpp src/cpu/latency.cpp)
+target_compile_features(test_latency_stats PRIVATE cxx_std_17)
 
 # Static router self-check (frontier CSV lookup, no GPU).
 add_executable(test_router src/tools/test_router.cpp src/cpu/router.cpp)
