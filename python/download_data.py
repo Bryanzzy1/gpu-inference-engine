@@ -1,6 +1,11 @@
-#Download and verify one day of Binance spot aggTrades.
-#Raw CSVs are gitignored here
+"""Download and verify one day of Binance spot aggTrades.
 
+Usage:
+    python download_data.py BTCUSDT 2026-06-27
+
+Fetches the daily aggTrades zip and its checksum, verifies the SHA-256, then
+extracts the CSV into ../data. Raw CSVs are gitignored.
+"""
 
 import hashlib
 import sys
@@ -48,5 +53,5 @@ def main(symbol: str, date: str) -> None:
 
 if __name__ == "__main__":
     sym = sys.argv[1] if len(sys.argv) > 1 else "BTCUSDT"
-    dt = sys.argv[2] if len(sys.argv) > 2 else "2026-06-27"  # default BTCUSDT 2026-06-27
+    dt = sys.argv[2] if len(sys.argv) > 2 else "2026-06-27"
     main(sym, dt)
