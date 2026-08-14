@@ -32,8 +32,11 @@ closed-loop SLA controller (holds a 150 us p99 on 20/20 ticks) are in
 ```bash
 cd python && python download_data.py BTCUSDT 2026-06-27 && cd ..
 cmake -S . -B build && cmake --build build     # CPU targets + self-checks
-./build/test_ring && ./build/test_router && ./build/test_controller
+./build/test_ring && ./build/test_router && ./build/test_controller && ./build/test_latency_stats
 ```
+
+`bench_hist` (CPU, no GPU) dumps the full latency distribution as a histogram CSV plus
+extended tail stats (p9999, IQR, stddev); `python python/plot_hist.py` plots it.
 
 GPU backends build with `nvcc -arch=sm_89` (load `vcvars64.bat` first on Windows).
 All build + run commands: [BENCHMARKS.md](BENCHMARKS.md#reproduce). Layout: `src/io`
