@@ -150,6 +150,22 @@ at the frontier-feasible rung. It climbs batch 1 -> 128 on the CPU and holds (p9
 Before/after traces: `results/controller_trace_p999.csv` (17/20, pre-fix) and
 `results/controller_trace.csv` (20/20).
 
+## Latency distribution (histogram)
+
+Percentiles summarize the tail; the histogram shows its shape. `bench_hist` times the
+CPU forward pass, prints extended stats (min / p50 / p99 / p999 / **p9999** / max, IQR,
+stddev), and writes a log-spaced histogram CSV. Log-spaced because latency spans orders
+of magnitude and linear bins collapse everything into one. `p9999` is reported because
+at high event rates the p999 spike is frequent, so the 1-in-10000 point is what a tight
+SLA feels. CPU-only, so it runs without a GPU; the GPU backends reuse the same
+`LatencyHarness::run_capture` + `histogram()`.
+
+```bash
+cmake --build build --target bench_hist
+./build/bench_hist data/BTCUSDT-aggTrades-2026-06-27.csv data/model results/hist.csv 200000 20
+python python/plot_hist.py results/hist.csv
+```
+
 ## Reproduce
 
 ```bash
