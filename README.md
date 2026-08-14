@@ -23,11 +23,8 @@ One `InferenceEngine` interface, timed on identical input.
 | GPU persistent megakernel | resident kernel + lock-free pinned ring | ~10x lower p999 than naive |
 
 The CPU wins at batch 1 (in-cache, no launch or PCIe); the GPU only overtakes once a
-larger batch amortizes the fixed cost. Full numbers, the jitter autopsy, and the
-closed-loop SLA controller (holds a 150 us p99 on 20/20 ticks) are in
-[BENCHMARKS.md](BENCHMARKS.md); rationale in [docs/DESIGN.md](docs/DESIGN.md); a
-walkthrough of what each piece is and the questions it answers is in
-[docs/TALKING-POINTS.md](docs/TALKING-POINTS.md).
+larger batch amortizes the fixed cost. On top: a jitter autopsy (per-stage tail) and a
+closed-loop SLA controller that holds a 150 us p99 on 20/20 ticks under bursty load.
 
 ## Run it
 
