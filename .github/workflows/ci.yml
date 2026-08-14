@@ -29,3 +29,6 @@ jobs:
 
       - name: Controller self-check
         run: ./build/test_controller
+
+      - name: Latency stats + histogram self-check
+        run: ./build/test_latency_stats
