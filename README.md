@@ -25,15 +25,20 @@ One `InferenceEngine` interface, timed on identical input.
 The CPU wins at batch 1 (in-cache, no launch or PCIe); the GPU only overtakes once a
 larger batch amortizes the fixed cost. Full numbers, the jitter autopsy, and the
 closed-loop SLA controller (holds a 150 us p99 on 20/20 ticks) are in
-[BENCHMARKS.md](BENCHMARKS.md); the rationale is in [docs/DESIGN.md](docs/DESIGN.md).
+[BENCHMARKS.md](BENCHMARKS.md); rationale in [docs/DESIGN.md](docs/DESIGN.md); a
+walkthrough of what each piece is and the questions it answers is in
+[docs/TALKING-POINTS.md](docs/TALKING-POINTS.md).
 
 ## Run it
 
 ```bash
 cd python && python download_data.py BTCUSDT 2026-06-27 && cd ..
 cmake -S . -B build && cmake --build build     # CPU targets + self-checks
-./build/test_ring && ./build/test_router && ./build/test_controller
+./build/test_ring && ./build/test_router && ./build/test_controller && ./build/test_latency_stats
 ```
+
+`bench_hist` (CPU, no GPU) dumps the full latency distribution as a histogram CSV plus
+extended tail stats (p9999, IQR, stddev); `python python/plot_hist.py` plots it.
 
 GPU backends build with `nvcc -arch=sm_89` (load `vcvars64.bat` first on Windows).
 All build + run commands: [BENCHMARKS.md](BENCHMARKS.md#reproduce). Layout: `src/io`
