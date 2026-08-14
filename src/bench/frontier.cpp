@@ -16,13 +16,15 @@ void write_frontier_csv(const std::string& path, const std::vector<FrontierCell>
     const bool exists = std::ifstream(path).good();
     std::ofstream out(path, std::ios::app);
     if (!out) return;
+    // p9999_ns is appended last so existing readers (Router reads fixed columns 0-6,
+    // plot_frontier reads by header name) keep working unchanged.
     if (!exists) {
-        out << "backend,batch,rate_hz,count,p50_ns,p99_ns,p999_ns,max_ns,iqr_ns,mean_ns\n";
+        out << "backend,batch,rate_hz,count,p50_ns,p99_ns,p999_ns,max_ns,iqr_ns,mean_ns,p9999_ns\n";
     }
     for (const FrontierCell& c : cells) {
         out << c.backend << ',' << c.batch << ',' << c.rate_hz << ','
             << c.stats.count << ',' << c.stats.p50 << ',' << c.stats.p99 << ','
             << c.stats.p999 << ',' << c.stats.max << ',' << c.stats.iqr << ','
-            << c.stats.mean << '\n';
+            << c.stats.mean << ',' << c.stats.p9999 << '\n';
     }
 }
