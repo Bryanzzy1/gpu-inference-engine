@@ -37,7 +37,14 @@ cmake -S . -B build && cmake --build build     # CPU targets + self-checks
 `bench_hist` (CPU, no GPU) dumps the full latency distribution as a histogram CSV plus
 extended tail stats (p9999, IQR, stddev); `python python/plot_hist.py` plots it.
 
-GPU backends build with `nvcc -arch=sm_89` (load `vcvars64.bat` first on Windows).
-All build + run commands: [BENCHMARKS.md](BENCHMARKS.md#reproduce). Layout: `src/io`
-(parse, features), `src/cpu` (model, harness, router, controller), `src/gpu` (CUDA
-backends), `src/bench` (drivers), `python` (train, plot).
+GPU backends build with `nvcc` (load `vcvars64.bat` first on Windows so nvcc finds the
+MSVC host compiler), e.g.:
+
+```bash
+nvcc -O2 -arch=sm_89 -std=c++17 -Iinclude src/bench/bench_all.cpp src/gpu/*.cu \
+  src/io/parser.cpp src/io/features.cpp src/cpu/model.cpp src/cpu/latency.cpp -o build/bench_all
+./build/bench_all data/BTCUSDT-aggTrades-2026-06-27.csv data/model
+```
+
+Layout: `src/io` (parse, features), `src/cpu` (model, harness, router, controller),
+`src/gpu` (CUDA backends), `src/bench` (drivers), `python` (train, plot).
