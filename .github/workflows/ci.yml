@@ -32,3 +32,6 @@ jobs:
 
       - name: Latency stats + histogram self-check
         run: ./build/test_latency_stats
+
+      - name: Queue-model self-check
+        run: ./build/test_queue_sim

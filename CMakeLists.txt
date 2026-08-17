@@ -74,3 +74,11 @@ target_compile_features(test_router PRIVATE cxx_std_17)
 # Closed-loop SLA controller self-check (simulated latency, no GPU).
 add_executable(test_controller src/tools/test_controller.cpp src/cpu/controller.cpp src/cpu/router.cpp)
 target_compile_features(test_controller PRIVATE cxx_std_17)
+
+# Queue-model self-check (idle / stable / overload behavior, no GPU).
+add_executable(test_queue_sim src/tools/test_queue_sim.cpp src/cpu/latency.cpp)
+target_compile_features(test_queue_sim PRIVATE cxx_std_17)
+
+# Offered-load sweep: replays measured service times under Poisson load (no GPU).
+add_executable(queue_load src/bench/queue_load.cpp src/cpu/latency.cpp)
+target_compile_features(queue_load PRIVATE cxx_std_17)
