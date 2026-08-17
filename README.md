@@ -26,6 +26,28 @@ The CPU wins at batch 1 (in-cache, no launch or PCIe); the GPU only overtakes on
 larger batch amortizes the fixed cost. On top: a jitter autopsy (per-stage tail) and a
 closed-loop SLA controller that holds a 150 us p99 on 20/20 ticks under bursty load.
 
+## Under real load: batching is a stability requirement
+
+The benchmarks above feed one input and wait for the result, so arrival rate never builds
+a queue and batching looks like a latency tradeoff. `queue_load` replays the **measured**
+per-batch service times under a Poisson arrival stream (a discrete-event model,
+`include/queue_sim.hpp`) to show what the synchronous view hides: a batching server has a
+throughput ceiling of `batch / service`, and any offered load above it makes the queue
+explode.
+
+| Backend, batch | Capacity | p99 at 50k rows/s | p99 at 1M rows/s |
+| --- | --- | --- | --- |
+| cuda-naive, 1 | 19k rows/s | 6364 us (overloaded) | overloaded |
+| cuda-naive, 256 | 2.9M rows/s | 174 us | 174 us |
+| cpu, 8 | 3.6M rows/s | 4.2 us | 4.4 us |
+
+cuda-naive at batch 1 collapses above ~19k rows/s (p99 in **milliseconds**); at batch 256
+it holds 174 us past 1M rows/s. So batching under load is not about shaving the median, it
+is what keeps the queue stable at all. The control law this implies: at a given offered
+load, pick the **smallest** batch whose capacity clears the load. See
+`results/queue_load.png` and cuda-lesson10. Grounded in real service times, only the
+arrivals are simulated.
+
 ## Run it
 
 ```bash
