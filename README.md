@@ -3,8 +3,7 @@
 [![ci](https://github.com/Bryanzzy1/gpu-inference-engine/actions/workflows/ci.yml/badge.svg)](https://github.com/Bryanzzy1/gpu-inference-engine/actions/workflows/ci.yml)
 
 Turns a market tick stream into a price-direction prediction four ways (CPU + three
-GPU paths) and measures which is fastest at the **p999 tail**, not the mean, because
-in trading one slow inference in a thousand is a missed quote.
+GPU paths) and measures which is fastest at the **p999 tail**.
 
 Pipeline: `parse ticks -> microstructure features -> tiny MLP (4-16-16-1) -> logit`.
 The headline artifact is a **2D frontier** over (batch size x arrival rate) showing
@@ -42,11 +41,9 @@ explode.
 | cpu, 8 | 3.6M rows/s | 4.2 us | 4.4 us |
 
 cuda-naive at batch 1 collapses above ~19k rows/s (p99 in **milliseconds**); at batch 256
-it holds 174 us past 1M rows/s. So batching under load is not about shaving the median, it
-is what keeps the queue stable at all. The control law this implies: at a given offered
+it holds 174 us past 1M rows/s. The control law this implies: at a given offered
 load, pick the **smallest** batch whose capacity clears the load. See
-`results/queue_load.png` and cuda-lesson10. Grounded in real service times, only the
-arrivals are simulated.
+`results/queue_load.png`. Only the arrivals are simulated.
 
 ## Run it
 
