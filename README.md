@@ -45,10 +45,45 @@ it holds 174 us past 1M rows/s. The control law this implies: at a given offered
 load, pick the **smallest** batch whose capacity clears the load. See
 `results/queue_load.png`. Only the arrivals are simulated.
 
+## Scaling the dataset: a week of ticks
+
+The results above come from one day (473k trades). Re-running on a **week** (2026-06-21 to
+06-27, **7.1M trades, 614 MB**, retrained model `test_acc 0.8168` vs a 0.5184 baseline)
+changes what the numbers say in two honest ways.
+
+**The tails get much cleaner, and the GPU's marginal win disappears.** Unpaced p999, us:
+
+| Backend, batch | one day | one week |
+| --- | --- | --- |
+| cpu, 1 | 24.8 | 1.1 |
+| cuda-naive, 1 | 3318.8 | 173.2 |
+| cpu, 256 | 1349.8 | 319.1 |
+| cuda-naive, 256 | 1017.0 | 422.0 |
+
+On one day cuda-naive won p999 at batch 256 (1017 vs the CPU's 1349). On a week the CPU's
+tail tightens to 319 and it **wins batch 256 too**; the CPU now holds 53 of 54 cells, and
+the GPU's whole top-right region collapses to a single noisy cell. The lesson: that
+crossover was small-sample tail noise, not a real regime, and more data is what exposed it.
+A short, contention-affected run produces fat tails; 20k iterations over a 7.1M-row stream
+produce tight, trustworthy ones. (Absolute latencies still drift run to run on a WDDM laptop
+sharing its GPU with the display, so the frontier's value is the shape and its stability,
+both of which improve with volume.)
+
+**At batch 1 the CPU does not lose its edge to volume.** p50 stays ~0.4 us even over 7.1M
+rows, because tick inference streams sequentially and the prefetcher keeps it cache-friendly
+regardless of total size. Volume erodes a random-access advantage, not a streaming one.
+
+**The stability result is robust to the dataset.** Re-running `queue_load` on the week's
+service times gives the same shape: cuda-naive at batch 1 caps near 20k rows/s and collapses
+above it, batch 256 holds ~240 us past 1M rows/s. That the queue conclusion does not move
+under 15x more data is the point of checking. Artifacts: `results/frontier_week*.png`,
+`results/queue_load_week.png`.
+
 ## Run it
 
 ```bash
-cd python && python download_data.py BTCUSDT 2026-06-27 && cd ..
+cd python && python download_data.py BTCUSDT 2026-06-27 && cd ..              # one day
+cd python && python download_data.py BTCUSDT 2026-06-21 2026-06-27 && cd ..   # a week, one combined CSV
 cmake -S . -B build && cmake --build build     # CPU targets + self-checks
 ./build/test_ring && ./build/test_router && ./build/test_controller && ./build/test_latency_stats
 ```
