@@ -122,5 +122,8 @@ int main(int argc, char** argv) {
     row_us("cuda-graphs", gph_s, "included (H2D+D2H)");
     row_us("persistent", per_s, "included (zero-copy)");
     std::cout << "sink " << sink << "\n";
+    // This is one run. On a shared-display WDDM GPU the p999 swings run to run (up to ~15x
+    // measured); the median is the stable number. Quantify it with python/bench_variance.py.
+    std::cout << "note: single run; p999 is noisy here, run python/bench_variance.py for the spread\n";
     return 0;
 }
