@@ -36,6 +36,9 @@ def main(path):
     batches = sorted(df["batch"].unique())
     rates = sorted(df["rate_hz"].unique())
     out_dir = Path(path).parent
+    # Name outputs after the CSV stem so different datasets (frontier vs frontier_week)
+    # do not overwrite each other's plots.
+    stem = Path(path).stem
 
     # Winner map: index of the backend with the lowest p999 per (batch, rate) cell.
     grid = np.full((len(batches), len(rates)), -1, dtype=int)
@@ -57,7 +60,7 @@ def main(path):
     handles = [plt.Rectangle((0, 0), 1, 1, color=cmap(k)) for k in range(len(backends))]
     ax.legend(handles, backends, bbox_to_anchor=(1.02, 1), loc="upper left")
     fig.tight_layout()
-    winner = out_dir / "frontier_winner.png"
+    winner = out_dir / f"{stem}_winner.png"
     fig.savefig(winner, dpi=120)
     print(f"wrote {winner}")
 
@@ -73,7 +76,7 @@ def main(path):
         ax.set_title(f"{backend}: p999 latency (us)")
         fig.colorbar(im, ax=ax, label="p999 (us)")
         fig.tight_layout()
-        out = out_dir / f"frontier_{backend}_p999.png"
+        out = out_dir / f"{stem}_{backend}_p999.png"
         fig.savefig(out, dpi=120)
         print(f"wrote {out}")
 
