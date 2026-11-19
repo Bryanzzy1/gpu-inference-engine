@@ -10,6 +10,12 @@ The headline artifact is a **2D frontier** over (batch size x arrival rate) show
 which backend wins p999 in each cell. The model is a fixed workload for comparing
 backends, not a trading signal.
 
+Because p999 on a shared-display WDDM laptop drifts run to run, every headline number
+here is checked for reproducibility before it is trusted. `bench_variance` reruns a
+benchmark five times and reports the run-to-run spread, and `compare_frontier` checks
+whether the 2D-frontier winners survive a second dataset. The rule the repo holds itself
+to: report a tail as a distribution over repeated runs, not a single number.
+
 ## Backends and result (RTX 4060)
 
 One `InferenceEngine` interface, timed on identical input.
@@ -19,7 +25,7 @@ One `InferenceEngine` interface, timed on identical input.
 | CPU reference | cache-hot, pinned busy-poll | **wins at batch 1** |
 | GPU naive | copy in, launch, copy out per event | narrows the gap at large batch, no stable win |
 | GPU + CUDA Graphs | launch sequence recorded, replayed | no win on one tiny kernel (WDDM) |
-| GPU persistent megakernel | resident kernel + lock-free pinned ring | ~10x lower p999 than naive |
+| GPU persistent megakernel | resident kernel + lock-free pinned ring | ~10x lower p99, ~7x lower p999 than naive |
 
 The CPU wins at batch 1 (in-cache, no launch or PCIe) and holds the p999 grid on this WDDM
 laptop; a larger batch narrows the gap but any single-run crossover sits inside the
@@ -59,7 +65,7 @@ splits into things that reproduce and one that did not.
   batch 256; on the week the CPU holds 53 of 54 frontier cells and the GPU region shrinks to
   one cell. `compare_frontier.py` puts a number on it: 5 of 54 cells flip winner between the
   two runs. So do not lean on that crossover; on this hardware the CPU wins the p999 grid.
-- **The CPU keeps its batch-1 edge under volume.** p50 stays ~0.4 us over 7.1M rows, because
+- **The CPU keeps its batch-1 edge under volume.** p50 stays ~0.5 us over 7.1M rows, because
   tick inference streams sequentially and the prefetcher stays effective regardless of size.
   Volume erodes a random-access advantage, not a streaming one.
 - **The queue/stability result is dataset-independent.** `queue_load` on the week's service
@@ -70,19 +76,28 @@ splits into things that reproduce and one that did not.
 trustworthy** on this WDDM laptop. `bench_variance.py` runs the batch-1 benchmark five times
 and reports the run-to-run spread (`results/variance_day.csv`, `variance_week.csv`):
 
-| Backend | p50 spread | p999 spread |
+| Backend | p50 spread (day) | p999 spread |
 | --- | --- | --- |
-| cpu | 3.0x | 2.4x (day), 5.5x (week) |
-| cuda-naive | 1.6x | **15.4x (day)**, 6.0x (week) |
-| persistent | 1.2x | 3.4x (day), 6.3x (week) |
+| cpu | 1.2x | 2.2x (day), 1.7x (week) |
+| cuda-naive | 1.7x | 1.1x (day), 1.8x (week) |
+| persistent | 1.1x | 2.1x (day), 1.6x (week) |
 
-The **median is stable** (cpu p50 ~0.3 us, persistent ~6-7 us across runs); the **tail is
-not** (cuda-naive p999 ranged 474 us to 7272 us over five day-runs). And more data did **not**
-tighten it: cpu p999 has a median near 1.5 us on both datasets, so the earlier reading that a
-week gave "cleaner tails" was one lucky run, not a volume effect. The honest rule this forces:
-report p999 as a distribution over repeated runs, not a single number, or move to a GPU that
-does not share a display. `compare_frontier` and `bench_variance` exist so that claim is
-checkable, not asserted.
+The **median is stable** across runs and datasets (cpu p50 ~0.5 us, persistent p50 ~7.3 us
+and p99 ~26.7 us, cuda-naive p50 ~124 us). The **tail moves more**: within a single five-run
+session p999 spreads ran 1.1x to 2.2x while the medians barely shifted. A single p999 is a
+draw from a distribution this shared-display laptop does not hold still, so the repo reports
+the tail as a spread over repeated runs rather than one number, and `compare_frontier` checks
+whether the frontier winners survive a second dataset. The clean fix is a GPU that does not
+drive a display. `bench_variance` and `compare_frontier` exist so the claim is checkable, not
+asserted.
+
+## Data
+
+`python/download_data.py` ingests Binance spot aggTrades over a date range: it fetches and
+unzips each UTC day and concatenates them into one combined CSV (the week of 2026-06-21 to
+06-27 is 7.1M trades, 614 MB). Microsecond timestamps, 8 columns, no order-book depth. The
+C++ parser reads the whole file once and hand-parses fields with `std::from_chars`, no
+per-field allocation.
 
 ## Run it
 
