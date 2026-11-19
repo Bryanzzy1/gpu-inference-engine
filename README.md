@@ -27,7 +27,7 @@ One `InferenceEngine` interface, timed on identical input.
 | GPU + CUDA Graphs | launch sequence recorded, replayed | no win on one tiny kernel (WDDM) |
 | GPU persistent megakernel | resident kernel + lock-free pinned ring | ~10x lower p99, ~7x lower p999 than naive |
 
-The CPU wins at batch 1 (in-cache, no launch or PCIe) and holds the p999 grid on this WDDM
+The CPU wins at batch 1 (in-cache, no launch or PCIe) and holds the p999 grid on my WDDM
 laptop; a larger batch narrows the gap but any single-run crossover sits inside the
 run-to-run noise (see "Scaling the dataset" below). On top: a jitter autopsy (per-stage
 tail) and a closed-loop SLA controller that holds a 150 us p99 on 20/20 ticks under bursty
